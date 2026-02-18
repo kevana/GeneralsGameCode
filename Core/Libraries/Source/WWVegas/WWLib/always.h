@@ -224,8 +224,8 @@ public:
 #ifndef _MIN_MAX_TEMPLATES_DEFINED_
 #define _MIN_MAX_TEMPLATES_DEFINED_
 
-#if defined(__MINGW32__) || defined(__MINGW64__)
-// For MinGW, use STL's min/max
+#if defined(__MINGW32__) || defined(__MINGW64__) || (defined(__clang__) && !defined(_MSC_VER)) || (defined(__GNUC__) && !defined(_MSC_VER))
+// For MinGW, Clang, and GCC, use STL's min/max
 #include <algorithm>
 using std::min;
 using std::max;

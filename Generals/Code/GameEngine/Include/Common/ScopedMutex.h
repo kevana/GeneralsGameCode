@@ -23,6 +23,8 @@
 
 #pragma once
 
+#ifdef _WIN32
+
 class ScopedMutex
 {
 	private:
@@ -39,3 +41,26 @@ class ScopedMutex
 			ReleaseMutex(m_mutex);
 		}
 };
+
+#else // Non-Windows: use std::mutex
+
+#include <mutex>
+
+class ScopedMutex
+{
+	private:
+		std::mutex &m_mutex;
+
+	public:
+		ScopedMutex(std::mutex &mutex) : m_mutex(mutex)
+		{
+			m_mutex.lock();
+		}
+
+		~ScopedMutex()
+		{
+			m_mutex.unlock();
+		}
+};
+
+#endif // _WIN32

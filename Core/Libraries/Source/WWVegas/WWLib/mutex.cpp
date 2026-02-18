@@ -20,55 +20,80 @@
 #include "wwdebug.h"
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <mutex>
 #endif
 
 // ----------------------------------------------------------------------------
 
+#ifdef _UNIX
+
 MutexClass::MutexClass(const char* name) : handle(nullptr), locked(false)
 {
-	#ifdef _UNIX
-		//assert(0);
-	#else
-		handle=CreateMutex(nullptr,false,name);
-		WWASSERT(handle);
-	#endif
+	handle = new std::recursive_timed_mutex();
 }
 
 MutexClass::~MutexClass()
 {
-	#ifdef _UNIX
-		//assert(0);
-	#else
-		WWASSERT(!locked); // Can't delete locked mutex!
-		CloseHandle(handle);
-	#endif
+	WWASSERT(!locked);
+	delete static_cast<std::recursive_timed_mutex*>(handle);
 }
 
 bool MutexClass::Lock(int time)
 {
-	#ifdef _UNIX
-		//assert(0);
-		return true;
-	#else
-		int res = WaitForSingleObject(handle,time==WAIT_INFINITE ? INFINITE : time);
-		if (res!=WAIT_OBJECT_0) return false;
+	auto* mtx = static_cast<std::recursive_timed_mutex*>(handle);
+	if (time == WAIT_INFINITE) {
+		mtx->lock();
 		locked++;
 		return true;
-	#endif
+	} else {
+		if (mtx->try_lock_for(std::chrono::milliseconds(time))) {
+			locked++;
+			return true;
+		}
+		return false;
+	}
 }
 
 void MutexClass::Unlock()
 {
-	#ifdef _UNIX
-		//assert(0);
-	#else
-		WWASSERT(locked);
-		locked--;
-		int res=ReleaseMutex(handle);
-		res;	// silence compiler warnings
-		WWASSERT(res);
-	#endif
+	WWASSERT(locked);
+	locked--;
+	static_cast<std::recursive_timed_mutex*>(handle)->unlock();
 }
+
+#else // _WIN32
+
+MutexClass::MutexClass(const char* name) : handle(nullptr), locked(false)
+{
+	handle=CreateMutex(nullptr,false,name);
+	WWASSERT(handle);
+}
+
+MutexClass::~MutexClass()
+{
+	WWASSERT(!locked); // Can't delete locked mutex!
+	CloseHandle(handle);
+}
+
+bool MutexClass::Lock(int time)
+{
+	int res = WaitForSingleObject(handle,time==WAIT_INFINITE ? INFINITE : time);
+	if (res!=WAIT_OBJECT_0) return false;
+	locked++;
+	return true;
+}
+
+void MutexClass::Unlock()
+{
+	WWASSERT(locked);
+	locked--;
+	int res=ReleaseMutex(handle);
+	res;	// silence compiler warnings
+	WWASSERT(res);
+}
+
+#endif // _UNIX
 
 // ----------------------------------------------------------------------------
 
@@ -90,47 +115,61 @@ MutexClass::LockClass::~LockClass()
 
 // ----------------------------------------------------------------------------
 
+#ifdef _UNIX
+
 CriticalSectionClass::CriticalSectionClass() : handle(nullptr), locked(false)
 {
-	#ifdef _UNIX
-		//assert(0);
-	#else
-		handle=W3DNEWARRAY char[sizeof(CRITICAL_SECTION)];
-		InitializeCriticalSection((CRITICAL_SECTION*)handle);
-	#endif
+	handle = new std::recursive_mutex();
 }
 
 CriticalSectionClass::~CriticalSectionClass()
 {
-	#ifdef _UNIX
-		//assert(0);
-	#else
-		WWASSERT(!locked); // Can't delete locked mutex!
-		DeleteCriticalSection((CRITICAL_SECTION*)handle);
-		delete[] handle;
-	#endif
+	WWASSERT(!locked);
+	delete static_cast<std::recursive_mutex*>(handle);
 }
 
 void CriticalSectionClass::Lock()
 {
-	#ifdef _UNIX
-		//assert(0);
-	#else
-		EnterCriticalSection((CRITICAL_SECTION*)handle);
-		locked++;
-	#endif
+	static_cast<std::recursive_mutex*>(handle)->lock();
+	locked++;
 }
 
 void CriticalSectionClass::Unlock()
 {
-	#ifdef _UNIX
-		//assert(0);
-	#else
-		WWASSERT(locked);
-		locked--;
-		LeaveCriticalSection((CRITICAL_SECTION*)handle);
-	#endif
+	WWASSERT(locked);
+	locked--;
+	static_cast<std::recursive_mutex*>(handle)->unlock();
 }
+
+#else // _WIN32
+
+CriticalSectionClass::CriticalSectionClass() : handle(nullptr), locked(false)
+{
+	handle=W3DNEWARRAY char[sizeof(CRITICAL_SECTION)];
+	InitializeCriticalSection((CRITICAL_SECTION*)handle);
+}
+
+CriticalSectionClass::~CriticalSectionClass()
+{
+	WWASSERT(!locked); // Can't delete locked mutex!
+	DeleteCriticalSection((CRITICAL_SECTION*)handle);
+	delete[] handle;
+}
+
+void CriticalSectionClass::Lock()
+{
+	EnterCriticalSection((CRITICAL_SECTION*)handle);
+	locked++;
+}
+
+void CriticalSectionClass::Unlock()
+{
+	WWASSERT(locked);
+	locked--;
+	LeaveCriticalSection((CRITICAL_SECTION*)handle);
+}
+
+#endif // _UNIX
 
 // ----------------------------------------------------------------------------
 

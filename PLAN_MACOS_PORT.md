@@ -1,5 +1,36 @@
 # Plan: Porting Generals to macOS
 
+## Progress Tracking
+
+### Phase 1: Build System & CMake Configuration
+- [x] **1.1** Add macOS CMake presets (`macos-arm64`, `macos-x86_64`, debug variants)
+- [x] **1.2** Add macOS platform detection (`IS_MACOS_BUILD` in compilers.cmake, `cmake/macos.cmake`)
+- [x] **1.3** Configure vcpkg for macOS (SDL2, OpenAL Soft as macOS-only deps)
+- [x] **1.4** Gate Windows-only subsystems behind `WIN32` (Win32Device, MilesAudio, Bink,
+      DirectInput sources; Windows library links; `<windows.h>` PCH; `WIN32` executable flag)
+- [x] **1.5** Fix cross-platform compilation issues (`<new.h>` → `<new>`, min/max templates
+      for Clang/GCC, `<io.h>` guards in core GameEngine files)
+- [x] **Stub targets** for `milesstub`, `binkstub`, `d3d8lib` on non-Windows platforms
+
+### Phase 2: Platform Abstraction Layer
+- [ ] **2.1** Windowing and event loop abstraction (SDL2)
+- [ ] **2.2** Threading and synchronization abstraction (std::thread/mutex)
+- [ ] **2.3** Registry / configuration abstraction
+- [ ] **2.4** Networking abstraction (Winsock → BSD sockets)
+
+### Phase 3: Graphics Rendering
+- [ ] **3.1** Create rendering abstraction interface
+- [ ] **3.2** Implement DX8 backend (preserve Windows path)
+- [ ] **3.3** Implement OpenGL 3.3 backend
+- [ ] **3.4** Shader translation (fixed-function → GLSL)
+- [ ] **3.5** Texture format handling
+- [ ] **3.6** Port WW3D2 library internals
+
+### Phase 4–8: Audio, Input, Video, Packaging, Testing
+- [ ] Not yet started
+
+---
+
 ## Executive Summary
 
 This document outlines a plan for porting Command & Conquer: Generals (and Zero Hour) to

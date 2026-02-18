@@ -17,9 +17,9 @@
 */
 
 ////////////////////////////////////////////////////////////////////////////////
-//																																						//
-//  (c) 2001-2003 Electronic Arts Inc.																				//
-//																																						//
+//                                                                            //
+//  (c) 2001-2003 Electronic Arts Inc.                                        //
+//                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 // CriticalSection.h ///////////////////////////////////////////////////////
@@ -33,6 +33,8 @@
 #ifdef PERF_TIMERS
 extern PerfGather TheCritSecPerfGather;
 #endif
+
+#ifdef _WIN32
 
 class CriticalSection
 {
@@ -72,6 +74,32 @@ class CriticalSection
 			LeaveCriticalSection( &m_windowsCriticalSection );
 		}
 };
+
+#else // Non-Windows: use std::recursive_mutex
+
+#include <mutex>
+
+class CriticalSection
+{
+	std::recursive_mutex m_mutex;
+
+	public:
+		CriticalSection() = default;
+		virtual ~CriticalSection() = default;
+
+	public:
+		void enter( void )
+		{
+			m_mutex.lock();
+		}
+
+		void exit( void )
+		{
+			m_mutex.unlock();
+		}
+};
+
+#endif // _WIN32
 
 class ScopedCriticalSection
 {

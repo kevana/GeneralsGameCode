@@ -17,6 +17,14 @@ else()
     set(IS_MINGW_BUILD FALSE)
 endif()
 
+# Detect macOS
+if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    message(STATUS "macOS detected")
+    set(IS_MACOS_BUILD TRUE)
+else()
+    set(IS_MACOS_BUILD FALSE)
+endif()
+
 # Set variable for VS6 to handle special cases.
 if (DEFINED MSVC_VERSION AND MSVC_VERSION LESS 1300)
     set(IS_VS6_BUILD TRUE)

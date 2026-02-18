@@ -48,11 +48,27 @@ if(MINGW)
     include(cmake/widl.cmake)
 endif()
 
-# Find/Add build dependencies and stubs shared by all projects
+# macOS specific configuration
+if(IS_MACOS_BUILD)
+    include(cmake/macos.cmake)
+endif()
+
+# Find/Add build dependencies and stubs shared by all projects (Windows-only SDKs)
 if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
     include(cmake/miles.cmake)
     include(cmake/bink.cmake)
     include(cmake/dx8.cmake)
+endif()
+
+# Provide empty interface targets for Windows-only SDKs on other platforms
+if(NOT TARGET milesstub)
+    add_library(milesstub INTERFACE)
+endif()
+if(NOT TARGET binkstub)
+    add_library(binkstub INTERFACE)
+endif()
+if(NOT TARGET d3d8lib)
+    add_library(d3d8lib INTERFACE)
 endif()
 
 # Define a dummy stlport target when not on VC6.

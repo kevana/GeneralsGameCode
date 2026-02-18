@@ -63,6 +63,11 @@ if(WIN32)
         WinMain.cpp
         WinMain.h
     )
+else()
+    # SDL2 entry point for macOS and other non-Windows platforms
+    target_sources(z_generals PRIVATE
+        ${CMAKE_SOURCE_DIR}/Core/GameEngineDevice/Source/SDLDevice/Common/SDLMain.cpp
+    )
 endif()
 
 # RC files optional for MinGW builds

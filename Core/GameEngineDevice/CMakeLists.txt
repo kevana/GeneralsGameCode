@@ -212,6 +212,14 @@ if(WIN32)
     )
 endif()
 
+# SDL device sources for macOS and other non-Windows platforms
+if(NOT WIN32 AND NOT IS_VS6_BUILD)
+    list(APPEND GAMEENGINEDEVICE_SRC
+        Include/SDLDevice/Common/SDLGameEngine.h
+        Source/SDLDevice/Common/SDLGameEngine.cpp
+    )
+endif()
+
 add_library(corei_gameenginedevice_private INTERFACE)
 add_library(corei_gameenginedevice_public INTERFACE)
 
@@ -232,6 +240,13 @@ target_link_libraries(corei_gameenginedevice_public INTERFACE
     d3d8lib
     milesstub
 )
+
+# SDL2 linking for non-Windows platforms
+if(NOT WIN32 AND NOT IS_VS6_BUILD)
+    find_package(SDL2 REQUIRED)
+    target_link_libraries(corei_gameenginedevice_public INTERFACE SDL2::SDL2)
+    target_include_directories(corei_gameenginedevice_public INTERFACE ${SDL2_INCLUDE_DIRS})
+endif()
 
 if(RTS_BUILD_OPTION_FFMPEG)
     find_package(FFMPEG REQUIRED)

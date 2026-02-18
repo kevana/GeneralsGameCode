@@ -30,6 +30,7 @@
 
 #include "Common/Registry.h"
 
+#ifdef _WIN32
 
 Bool  getStringFromRegistry(HKEY root, AsciiString path, AsciiString key, AsciiString& val)
 {
@@ -164,6 +165,28 @@ Bool GetUnsignedIntFromRegistry(AsciiString path, AsciiString key, UnsignedInt& 
 
 	return getUnsignedIntFromRegistry(HKEY_CURRENT_USER, fullPath.str(), key.str(), val);
 }
+
+#else // Non-Windows: registry not available, return defaults
+
+Bool GetStringFromGeneralsRegistry(AsciiString path, AsciiString key, AsciiString& val)
+{
+	DEBUG_LOG(("GetStringFromGeneralsRegistry - no registry on this platform, using default for key %s", key.str()));
+	return FALSE;
+}
+
+Bool GetStringFromRegistry(AsciiString path, AsciiString key, AsciiString& val)
+{
+	DEBUG_LOG(("GetStringFromRegistry - no registry on this platform, using default for key %s", key.str()));
+	return FALSE;
+}
+
+Bool GetUnsignedIntFromRegistry(AsciiString path, AsciiString key, UnsignedInt& val)
+{
+	DEBUG_LOG(("GetUnsignedIntFromRegistry - no registry on this platform, using default for key %s", key.str()));
+	return FALSE;
+}
+
+#endif // _WIN32
 
 AsciiString GetRegistryLanguage(void)
 {

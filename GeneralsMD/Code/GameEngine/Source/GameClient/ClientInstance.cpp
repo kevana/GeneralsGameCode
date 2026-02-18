@@ -18,11 +18,23 @@
 #include "PreRTS.h"
 #include "GameClient/ClientInstance.h"
 
+#ifndef _WIN32
+#include <sys/file.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstdio>
+#endif
+
 #define GENERALS_GUID "685EAFF2-3216-4265-B047-251C5F4B82F3"
 
 namespace rts
 {
+
+#ifdef _WIN32
 HANDLE ClientInstance::s_mutexHandle = nullptr;
+#else
+int ClientInstance::s_lockFd = -1;
+#endif
 UnsignedInt ClientInstance::s_instanceIndex = 0;
 
 #if defined(RTS_MULTI_INSTANCE)
@@ -30,6 +42,8 @@ Bool ClientInstance::s_isMultiInstance = true;
 #else
 Bool ClientInstance::s_isMultiInstance = false;
 #endif
+
+#ifdef _WIN32
 
 bool ClientInstance::initialize()
 {
@@ -88,6 +102,62 @@ bool ClientInstance::isInitialized()
 {
 	return s_mutexHandle != nullptr;
 }
+
+#else // Non-Windows: use file locking
+
+bool ClientInstance::initialize()
+{
+	if (isInitialized())
+	{
+		return true;
+	}
+
+	while (true)
+	{
+		std::string lockName = std::string("/tmp/") + getFirstInstanceName();
+		if (s_instanceIndex > 0u)
+		{
+			char idStr[33];
+			snprintf(idStr, sizeof(idStr), "%u", s_instanceIndex);
+			lockName.push_back('-');
+			lockName.append(idStr);
+		}
+		lockName.append(".lock");
+
+		int fd = open(lockName.c_str(), O_CREAT | O_RDWR, 0666);
+		if (fd < 0)
+		{
+			return false;
+		}
+
+		if (flock(fd, LOCK_EX | LOCK_NB) == 0)
+		{
+			s_lockFd = fd;
+			break;
+		}
+
+		close(fd);
+
+		if (isMultiInstance())
+		{
+			++s_instanceIndex;
+			continue;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool ClientInstance::isInitialized()
+{
+	return s_lockFd >= 0;
+}
+
+#endif // _WIN32
 
 bool ClientInstance::isMultiInstance()
 {

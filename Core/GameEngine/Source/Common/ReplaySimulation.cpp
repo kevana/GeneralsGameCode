@@ -23,7 +23,9 @@
 #include "Common/GameEngine.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Recorder.h"
+#ifdef _WIN32
 #include "Common/WorkerProcess.h"
+#endif
 #include "GameLogic/GameLogic.h"
 #include "GameClient/GameClient.h"
 
@@ -32,6 +34,7 @@ Bool ReplaySimulation::s_isRunning = false;
 UnsignedInt ReplaySimulation::s_replayIndex = 0;
 UnsignedInt ReplaySimulation::s_replayCount = 0;
 
+#ifdef _WIN32
 namespace
 {
 int countProcessesRunning(const std::vector<WorkerProcess>& processes)
@@ -46,6 +49,7 @@ int countProcessesRunning(const std::vector<WorkerProcess>& processes)
 	return numProcessesRunning;
 }
 } // namespace
+#endif // _WIN32
 
 int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString> &filenames)
 {
@@ -129,6 +133,7 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 	return numErrors != 0 ? 1 : 0;
 }
 
+#ifdef _WIN32
 int ReplaySimulation::simulateReplaysInWorkerProcesses(const std::vector<AsciiString> &filenames, int maxProcesses)
 {
 	DWORD totalStartTimeMillis = GetTickCount();
@@ -202,6 +207,7 @@ int ReplaySimulation::simulateReplaysInWorkerProcesses(const std::vector<AsciiSt
 
 	return numErrors != 0 ? 1 : 0;
 }
+#endif // _WIN32
 
 std::vector<AsciiString> ReplaySimulation::resolveFilenameWildcards(const std::vector<AsciiString> &filenames)
 {
@@ -248,8 +254,13 @@ std::vector<AsciiString> ReplaySimulation::resolveFilenameWildcards(const std::v
 int ReplaySimulation::simulateReplays(const std::vector<AsciiString> &filenames, int maxProcesses)
 {
 	std::vector<AsciiString> filenamesResolved = resolveFilenameWildcards(filenames);
+#ifdef _WIN32
 	if (maxProcesses == SIMULATE_REPLAYS_SEQUENTIAL)
 		return simulateReplaysInThisProcess(filenamesResolved);
 	else
 		return simulateReplaysInWorkerProcesses(filenamesResolved, maxProcesses);
+#else
+	// Worker processes not yet supported on non-Windows; always run sequentially
+	return simulateReplaysInThisProcess(filenamesResolved);
+#endif
 }

@@ -49,7 +49,11 @@ public:
 	static const char* getFirstInstanceName();
 
 private:
+#ifdef _WIN32
 	static HANDLE s_mutexHandle;
+#else
+	static int s_lockFd;
+#endif
 	static UnsignedInt s_instanceIndex;
 	static Bool s_isMultiInstance;
 };

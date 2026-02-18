@@ -18,6 +18,8 @@
 
 #pragma once
 
+#ifdef _WIN32
+
 // Helper class that allows you to start a worker process and retrieve its exit code
 // and console output as a string.
 // It also makes sure that the started process is killed in case our process exits in any way.
@@ -54,3 +56,26 @@ private:
 	DWORD m_exitcode;
 	bool m_isDone;
 };
+
+#else // Non-Windows stub
+
+class WorkerProcess
+{
+public:
+	WorkerProcess() : m_exitcode(0), m_isDone(false) {}
+
+	bool startProcess(UnicodeString command) { return false; }
+	void update() {}
+	bool isRunning() const { return false; }
+	bool isDone() const { return m_isDone; }
+	int getExitCode() const { return m_exitcode; }
+	AsciiString getStdOutput() const { return m_stdOutput; }
+	void kill() {}
+
+private:
+	AsciiString m_stdOutput;
+	int m_exitcode;
+	bool m_isDone;
+};
+
+#endif // _WIN32

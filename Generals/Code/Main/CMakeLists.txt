@@ -1,27 +1,31 @@
-add_executable(g_generals WIN32)
-
-# Use a binary name that doesn't conflict with original game.
-if("${CMAKE_SYSTEM}" MATCHES "Windows")
-    set_target_properties(g_generals PROPERTIES OUTPUT_NAME generalsv)
+if(WIN32)
+    add_executable(g_generals WIN32)
 else()
-    set_target_properties(g_generals PROPERTIES OUTPUT_NAME generalsv)
+    add_executable(g_generals)
 endif()
+
+set_target_properties(g_generals PROPERTIES OUTPUT_NAME generalsv)
 
 target_link_libraries(g_generals PRIVATE
     binkstub
-    comctl32
-    d3d8
-    d3dx8
-    dinput8
-    dxguid
     g_gameengine
     g_gameenginedevice
     gi_always
-    imm32
     milesstub
-    vfw32
-    winmm
 )
+
+if(WIN32)
+    target_link_libraries(g_generals PRIVATE
+        comctl32
+        d3d8
+        d3dx8
+        dinput8
+        dxguid
+        imm32
+        vfw32
+        winmm
+    )
+endif()
 
 # TODO Originally referred to build host and user, replace with git info perhaps?
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/GeneratedVersion.h
@@ -64,10 +68,12 @@ target_include_directories(g_generals PRIVATE
     ${CMAKE_BINARY_DIR}/Code/Libraries
 )
 
-target_sources(g_generals PRIVATE
-    WinMain.cpp
-    WinMain.h
-)
+if(WIN32)
+    target_sources(g_generals PRIVATE
+        WinMain.cpp
+        WinMain.h
+    )
+endif()
 
 # RC files are optional for MinGW builds
 # Icon: LoadIcon() handles missing resource gracefully (uses default system icon)

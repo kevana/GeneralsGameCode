@@ -1,6 +1,4 @@
 set(GAMEENGINEDEVICE_SRC
-    Include/MilesAudioDevice/MilesAudioManager.h
-    Include/VideoDevice/Bink/BinkVideoPlayer.h
 #    Include/W3DDevice/Common/W3DConvert.h
 #    Include/W3DDevice/Common/W3DFunctionLexicon.h
 #    Include/W3DDevice/Common/W3DModuleFactory.h
@@ -81,16 +79,10 @@ set(GAMEENGINEDEVICE_SRC
 #    Include/W3DDevice/GameLogic/W3DGameLogic.h
 #    Include/W3DDevice/GameLogic/W3DGhostObject.h
 #    Include/W3DDevice/GameLogic/W3DTerrainLogic.h
-    Include/Win32Device/Common/Win32BIGFile.h
-    Include/Win32Device/Common/Win32BIGFileSystem.h
 #    Include/Win32Device/Common/Win32GameEngine.h
-    Include/Win32Device/Common/Win32LocalFile.h
-    Include/Win32Device/Common/Win32LocalFileSystem.h
 #    Include/Win32Device/GameClient/Win32DIKeyboard.h
 #    Include/Win32Device/GameClient/Win32DIMouse.h
 #    Include/Win32Device/GameClient/Win32Mouse.h
-    Source/MilesAudioDevice/MilesAudioManager.cpp
-    Source/VideoDevice/Bink/BinkVideoPlayer.cpp
 #    Source/W3DDevice/Common/System/W3DFunctionLexicon.cpp
     Source/W3DDevice/Common/System/W3DRadar.cpp
 #    Source/W3DDevice/Common/Thing/W3DModuleFactory.cpp
@@ -181,11 +173,7 @@ set(GAMEENGINEDEVICE_SRC
 #    Source/W3DDevice/GameLogic/W3DGameLogic.cpp
 #    Source/W3DDevice/GameLogic/W3DGhostObject.cpp
 #    Source/W3DDevice/GameLogic/W3DTerrainLogic.cpp
-    Source/Win32Device/Common/Win32BIGFile.cpp
-    Source/Win32Device/Common/Win32BIGFileSystem.cpp
 #    Source/Win32Device/Common/Win32GameEngine.cpp
-    Source/Win32Device/Common/Win32LocalFile.cpp
-    Source/Win32Device/Common/Win32LocalFileSystem.cpp
 #    Source/Win32Device/Common/Win32OSDisplay.cpp
 #    Source/Win32Device/GameClient/Win32DIKeyboard.cpp
     #Source/Win32Device/GameClient/Win32DIMouse.cpp
@@ -203,6 +191,24 @@ if(NOT IS_VS6_BUILD)
         Source/StdDevice/Common/StdBIGFileSystem.cpp
         Source/StdDevice/Common/StdLocalFile.cpp
         Source/StdDevice/Common/StdLocalFileSystem.cpp
+    )
+endif()
+
+# Windows-only device sources (Win32 file I/O, MilesAudio, Bink video)
+if(WIN32)
+    list(APPEND GAMEENGINEDEVICE_SRC
+        Include/MilesAudioDevice/MilesAudioManager.h
+        Include/VideoDevice/Bink/BinkVideoPlayer.h
+        Include/Win32Device/Common/Win32BIGFile.h
+        Include/Win32Device/Common/Win32BIGFileSystem.h
+        Include/Win32Device/Common/Win32LocalFile.h
+        Include/Win32Device/Common/Win32LocalFileSystem.h
+        Source/MilesAudioDevice/MilesAudioManager.cpp
+        Source/VideoDevice/Bink/BinkVideoPlayer.cpp
+        Source/Win32Device/Common/Win32BIGFile.cpp
+        Source/Win32Device/Common/Win32BIGFileSystem.cpp
+        Source/Win32Device/Common/Win32LocalFile.cpp
+        Source/Win32Device/Common/Win32LocalFileSystem.cpp
     )
 endif()
 

@@ -38,12 +38,23 @@
   - Guarded `<winsock.h>` includes in `ftp.h`, GameSpy thread files
 
 ### Phase 3: Graphics Rendering
-- [ ] **3.1** Create rendering abstraction interface
-- [ ] **3.2** Implement DX8 backend (preserve Windows path)
-- [ ] **3.3** Implement OpenGL 3.3 backend
-- [ ] **3.4** Shader translation (fixed-function → GLSL)
-- [ ] **3.5** Texture format handling
-- [ ] **3.6** Port WW3D2 library internals
+- [x] **3.1** D3D8 type compatibility for non-Windows
+  - Created `Dependencies/d3d8-compat/include/d3d8.h` with all D3D8 enums, structs,
+    FVF flags, COM interface stubs, and Windows types needed by WW3D2 headers
+  - Wired `d3d8lib` CMake INTERFACE target to provide compat header on non-Windows
+  - Made `DX8CALL` macros no-ops on non-Windows (both Generals and GeneralsMD)
+- [x] **3.2** Stub DX8 implementations for non-Windows compilation
+  - Created `Core/Libraries/Source/WWVegas/WW3D2/dx8_stubs.cpp` with no-op stubs for
+    all DX8Wrapper, DX8Caps, FVFInfoClass, VertexBuffer, IndexBuffer, and
+    DX8MeshRendererClass methods (guarded by `#ifndef _WIN32`)
+  - Includes DX8RendererDebugger stubs for GeneralsMD (via `__has_include`)
+  - Modified Generals and GeneralsMD WW3D2 CMakeLists: DX8 .cpp files compiled only
+    on WIN32, dx8_stubs.cpp used on other platforms
+  - Gated `<windows.h>` PCH entry behind WIN32 check
+- [ ] **3.3** Add OpenGL loader (glad) and GL context creation
+- [ ] **3.4** Implement core GL rendering in DX8Wrapper stubs
+- [ ] **3.5** Shader translation (fixed-function → GLSL)
+- [ ] **3.6** Texture format handling for OpenGL
 
 ### Phase 4–8: Audio, Input, Video, Packaging, Testing
 - [ ] Not yet started

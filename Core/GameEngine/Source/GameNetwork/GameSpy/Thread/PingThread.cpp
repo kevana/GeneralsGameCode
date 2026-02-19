@@ -28,7 +28,9 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-#include <winsock.h>	// This one has to be here. Prevents collisions with windsock2.h
+#ifdef _WIN32
+#include <winsock.h>	// This one has to be here. Prevents collisions with winsock2.h
+#endif
 
 #include "GameNetwork/GameSpy/PingThread.h"
 #include "mutex.h"

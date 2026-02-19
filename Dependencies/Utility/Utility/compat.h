@@ -70,6 +70,7 @@
 #include "wchar_compat.h"
 #include "time_compat.h"
 #include "thread_compat.h"
+#include "socket_compat.h"
 
 #endif
 

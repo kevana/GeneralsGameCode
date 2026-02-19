@@ -117,6 +117,7 @@ WWINLINE void DX8_ErrorCode(unsigned res)
 	Log_DX8_ErrorCode(res);
 }
 
+#ifdef _WIN32
 #ifdef WWDEBUG
 #define DX8CALL_HRES(x,res) DX8_Assert(); res = DX8Wrapper::_Get_D3D_Device8()->x; DX8_ErrorCode(res); number_of_DX8_calls++;
 #define DX8CALL(x) DX8_Assert(); DX8_ErrorCode(DX8Wrapper::_Get_D3D_Device8()->x); number_of_DX8_calls++;
@@ -126,6 +127,12 @@ WWINLINE void DX8_ErrorCode(unsigned res)
 #define DX8CALL_HRES(x,res) res = DX8Wrapper::_Get_D3D_Device8()->x; number_of_DX8_calls++;
 #define DX8CALL(x) DX8Wrapper::_Get_D3D_Device8()->x; number_of_DX8_calls++;
 #define DX8CALL_D3D(x) DX8Wrapper::_Get_D3D8()->x; number_of_DX8_calls++;
+#define DX8_THREAD_ASSERT() ;
+#endif
+#else // Non-Windows: DX8 calls are no-ops
+#define DX8CALL_HRES(x,res) res = D3D_OK; number_of_DX8_calls++;
+#define DX8CALL(x) number_of_DX8_calls++;
+#define DX8CALL_D3D(x) number_of_DX8_calls++;
 #define DX8_THREAD_ASSERT() ;
 #endif
 

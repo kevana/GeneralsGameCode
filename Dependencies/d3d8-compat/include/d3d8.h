@@ -924,22 +924,60 @@ typedef struct _D3DDISPLAYMODE {
 
 // ---------------------------------------------------------------------------
 // Stub COM Interface declarations
-// These are opaque types - pointers to them compile, but no methods are called.
-// On non-Windows, the DX8 implementation is stubbed out entirely.
+// Minimal classes with AddRef/Release so that inline code in WW3D2 headers
+// compiles on non-Windows. The DX8 implementation .cpp files are gated
+// behind _WIN32, so these methods are never actually called at runtime.
 // ---------------------------------------------------------------------------
 
-struct IDirect3D8;
-struct IDirect3DDevice8;
-struct IDirect3DTexture8;
-struct IDirect3DCubeTexture8;
-struct IDirect3DVolumeTexture8;
-struct IDirect3DSurface8;
-struct IDirect3DVolume8;
-struct IDirect3DVertexBuffer8;
-struct IDirect3DIndexBuffer8;
-struct IDirect3DBaseTexture8;
-struct IDirect3DSwapChain8;
-struct IDirect3DResource8;
+struct IUnknown_d3d8_compat {
+    virtual unsigned long AddRef() { return 0; }
+    virtual unsigned long Release() { return 0; }
+    virtual ~IUnknown_d3d8_compat() = default;
+};
+
+struct IDirect3DResource8 : public IUnknown_d3d8_compat {};
+
+struct IDirect3DBaseTexture8 : public IDirect3DResource8 {};
+struct IDirect3DTexture8 : public IDirect3DBaseTexture8 {
+    HRESULT GetSurfaceLevel(unsigned int, struct IDirect3DSurface8**) { return D3DERR_INVALIDCALL; }
+    HRESULT GetLevelDesc(unsigned int, D3DSURFACE_DESC*) { return D3DERR_INVALIDCALL; }
+    HRESULT LockRect(unsigned int, D3DLOCKED_RECT*, const RECT*, unsigned long) { return D3DERR_INVALIDCALL; }
+    HRESULT UnlockRect(unsigned int) { return D3DERR_INVALIDCALL; }
+};
+struct IDirect3DCubeTexture8 : public IDirect3DBaseTexture8 {
+    HRESULT GetLevelDesc(unsigned int, D3DSURFACE_DESC*) { return D3DERR_INVALIDCALL; }
+    HRESULT GetCubeMapSurface(unsigned int, unsigned int, struct IDirect3DSurface8**) { return D3DERR_INVALIDCALL; }
+    HRESULT LockRect(unsigned int, unsigned int, D3DLOCKED_RECT*, const RECT*, unsigned long) { return D3DERR_INVALIDCALL; }
+    HRESULT UnlockRect(unsigned int, unsigned int) { return D3DERR_INVALIDCALL; }
+};
+struct IDirect3DVolumeTexture8 : public IDirect3DBaseTexture8 {
+    HRESULT GetLevelDesc(unsigned int, D3DVOLUME_DESC*) { return D3DERR_INVALIDCALL; }
+    HRESULT LockBox(unsigned int, D3DLOCKED_BOX*, const D3DBOX*, unsigned long) { return D3DERR_INVALIDCALL; }
+    HRESULT UnlockBox(unsigned int) { return D3DERR_INVALIDCALL; }
+};
+
+struct IDirect3DSurface8 : public IUnknown_d3d8_compat {
+    HRESULT GetDesc(D3DSURFACE_DESC*) { return D3DERR_INVALIDCALL; }
+    HRESULT LockRect(D3DLOCKED_RECT*, const RECT*, unsigned long) { return D3DERR_INVALIDCALL; }
+    HRESULT UnlockRect() { return D3DERR_INVALIDCALL; }
+};
+struct IDirect3DVolume8 : public IUnknown_d3d8_compat {};
+
+struct IDirect3DVertexBuffer8 : public IDirect3DResource8 {
+    HRESULT Lock(unsigned int, unsigned int, unsigned char**, unsigned long) { return D3DERR_INVALIDCALL; }
+    HRESULT Unlock() { return D3DERR_INVALIDCALL; }
+};
+struct IDirect3DIndexBuffer8 : public IDirect3DResource8 {
+    HRESULT Lock(unsigned int, unsigned int, unsigned char**, unsigned long) { return D3DERR_INVALIDCALL; }
+    HRESULT Unlock() { return D3DERR_INVALIDCALL; }
+};
+
+struct IDirect3DSwapChain8 : public IUnknown_d3d8_compat {
+    HRESULT Present(const RECT*, const RECT*, HWND, void*) { return D3DERR_INVALIDCALL; }
+};
+
+struct IDirect3D8 : public IUnknown_d3d8_compat {};
+struct IDirect3DDevice8 : public IUnknown_d3d8_compat {};
 
 // ---------------------------------------------------------------------------
 // D3DX utility functions (stubs)

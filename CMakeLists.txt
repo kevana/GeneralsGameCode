@@ -69,6 +69,10 @@ if(NOT TARGET binkstub)
 endif()
 if(NOT TARGET d3d8lib)
     add_library(d3d8lib INTERFACE)
+    # On non-Windows, provide D3D8 type definitions via compatibility header
+    if(NOT WIN32)
+        target_include_directories(d3d8lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/d3d8-compat/include)
+    endif()
 endif()
 
 # Define a dummy stlport target when not on VC6.

@@ -51,7 +51,14 @@
   - Modified Generals and GeneralsMD WW3D2 CMakeLists: DX8 .cpp files compiled only
     on WIN32, dx8_stubs.cpp used on other platforms
   - Gated `<windows.h>` PCH entry behind WIN32 check
-- [ ] **3.3** Add OpenGL loader (glad) and GL context creation
+- [x] **3.3** OpenGL 3.3 context creation via SDL2
+  - Created `Dependencies/opengl/include/gl_compat.h` header wrapper
+    (uses `<OpenGL/gl3.h>` on macOS, `<GL/gl.h>` on Linux)
+  - Added `gl_loader` CMake interface target linking OpenGL framework + SDL2
+  - SDL window created with GL 3.3 core profile in `SDLGameEngine::init()`
+  - `ApplicationHWnd` defined in `SDLMain.cpp` pointing to SDL_Window
+  - DX8Wrapper::Init creates GL context, sets default state
+  - Basic GL operations: Clear, Set_Viewport, Flip_To_Primary, device setup
 - [ ] **3.4** Implement core GL rendering in DX8Wrapper stubs
 - [ ] **3.5** Shader translation (fixed-function → GLSL)
 - [ ] **3.6** Texture format handling for OpenGL

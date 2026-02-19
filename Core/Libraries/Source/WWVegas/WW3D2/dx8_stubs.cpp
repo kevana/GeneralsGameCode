@@ -19,10 +19,12 @@
 
 #include <SDL.h>
 #include <gl_compat.h>
+#include "gl_render.h"
 
 // ===== OpenGL context state =====
 static SDL_GLContext s_glContext = nullptr;
 static SDL_Window* s_sdlWindow = nullptr;
+static GLRenderState s_glState = {};
 
 // ===== Globals =====
 unsigned number_of_DX8_calls = 0;
@@ -111,6 +113,18 @@ bool DX8Wrapper::Init(void* hwnd, bool lite)
 	SDL_GL_MakeCurrent(s_sdlWindow, s_glContext);
 	SDL_GL_SetSwapInterval(1); // vsync
 
+	// Initialize shader program
+	GL_InitShaderProgram(s_glState.shader, s_basicVertexShader, s_basicFragmentShader);
+	if (!s_glState.shader.program) {
+		SDL_GL_DeleteContext(s_glContext);
+		s_glContext = nullptr;
+		return false;
+	}
+
+	// Create default VAO (required for GL 3.3 core profile)
+	glGenVertexArrays(1, &s_glState.defaultVAO);
+	glBindVertexArray(s_glState.defaultVAO);
+
 	// Set default GL state
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
@@ -118,6 +132,42 @@ bool DX8Wrapper::Init(void* hwnd, bool lite)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClearDepth(1.0);
+
+	// Initialize render state tracking
+	GL_IdentityMatrix(s_glState.projectionMatrix);
+	GL_IdentityMatrix(s_glState.viewMatrix);
+	GL_IdentityMatrix(s_glState.worldMatrix);
+	s_glState.depthTestEnabled = true;
+	s_glState.depthWriteEnabled = true;
+	s_glState.blendEnabled = true;
+	s_glState.srcBlend = GL_SRC_ALPHA;
+	s_glState.dstBlend = GL_ONE_MINUS_SRC_ALPHA;
+	s_glState.cullEnabled = true;
+	s_glState.alphaTestEnabled = false;
+	s_glState.alphaRef = 0.375f; // 0x60/255
+	s_glState.fogEnabled = false;
+	s_glState.ambientColor[0] = 1.0f;
+	s_glState.ambientColor[1] = 1.0f;
+	s_glState.ambientColor[2] = 1.0f;
+	s_glState.ambientColor[3] = 1.0f;
+
+	// Activate the shader and set default uniforms
+	glUseProgram(s_glState.shader.program);
+	glUniformMatrix4fv(s_glState.shader.loc_projection, 1, GL_FALSE, s_glState.projectionMatrix);
+	glUniformMatrix4fv(s_glState.shader.loc_view, 1, GL_FALSE, s_glState.viewMatrix);
+	glUniformMatrix4fv(s_glState.shader.loc_world, 1, GL_FALSE, s_glState.worldMatrix);
+	glUniform4fv(s_glState.shader.loc_ambientColor, 1, s_glState.ambientColor);
+	glUniform1i(s_glState.shader.loc_hasTexture, 0);
+	glUniform1i(s_glState.shader.loc_texture0, 0);
+	glUniform1i(s_glState.shader.loc_texture1, 1);
+	glUniform1i(s_glState.shader.loc_alphaTestEnable, 0);
+	glUniform1f(s_glState.shader.loc_alphaRef, 0.375f);
+	glUniform1i(s_glState.shader.loc_fogEnable, 0);
+	s_glState.initialized = true;
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CW); // D3D uses clockwise winding
 
 	int w, h;
 	SDL_GetWindowSize(s_sdlWindow, &w, &h);
@@ -132,6 +182,11 @@ bool DX8Wrapper::Init(void* hwnd, bool lite)
 
 void DX8Wrapper::Shutdown(void)
 {
+	if (s_glState.initialized) {
+		if (s_glState.defaultVAO) glDeleteVertexArrays(1, &s_glState.defaultVAO);
+		if (s_glState.shader.program) glDeleteProgram(s_glState.shader.program);
+		s_glState = {};
+	}
 	if (s_glContext) {
 		SDL_GL_DeleteContext(s_glContext);
 		s_glContext = nullptr;
@@ -190,7 +245,33 @@ void DX8Wrapper::Draw(unsigned, unsigned short, unsigned short, unsigned short, 
 void DX8Wrapper::Draw_Triangles(unsigned, unsigned short, unsigned short, unsigned short, unsigned short) {}
 void DX8Wrapper::Draw_Triangles(unsigned short, unsigned short, unsigned short, unsigned short) {}
 void DX8Wrapper::Draw_Strip(unsigned short, unsigned short, unsigned short, unsigned short) {}
-void DX8Wrapper::Apply_Render_State_Changes() {}
+void DX8Wrapper::Apply_Render_State_Changes()
+{
+	if (!s_glState.initialized) return;
+
+	// Update transform matrices from the DX8 state
+	if (render_state_changed & (WORLD_CHANGED | WORLD_IDENTITY)) {
+		if (render_state_changed & WORLD_IDENTITY) {
+			GL_IdentityMatrix(s_glState.worldMatrix);
+		} else {
+			GL_D3DMatrixToGL((const float*)&DX8Transforms[D3DTS_WORLD], s_glState.worldMatrix);
+		}
+		glUniformMatrix4fv(s_glState.shader.loc_world, 1, GL_FALSE, s_glState.worldMatrix);
+	}
+	if (render_state_changed & (VIEW_CHANGED | VIEW_IDENTITY)) {
+		if (render_state_changed & VIEW_IDENTITY) {
+			GL_IdentityMatrix(s_glState.viewMatrix);
+		} else {
+			GL_D3DMatrixToGL((const float*)&DX8Transforms[D3DTS_VIEW], s_glState.viewMatrix);
+		}
+		glUniformMatrix4fv(s_glState.shader.loc_view, 1, GL_FALSE, s_glState.viewMatrix);
+	}
+
+	// Update fog state
+	glUniform1i(s_glState.shader.loc_fogEnable, FogEnable ? 1 : 0);
+
+	render_state_changed = 0;
+}
 IDirect3DTexture8* DX8Wrapper::_Create_DX8_Texture(unsigned, unsigned, WW3DFormat, MipCountType, D3DPOOL, bool) { return nullptr; }
 IDirect3DTexture8* DX8Wrapper::_Create_DX8_Texture(const char*, MipCountType) { return nullptr; }
 IDirect3DTexture8* DX8Wrapper::_Create_DX8_Texture(IDirect3DSurface8*, MipCountType) { return nullptr; }
@@ -217,7 +298,19 @@ void DX8Wrapper::Set_Render_Target(IDirect3DSwapChain8*) {}
 void DX8Wrapper::Set_Gamma(float, float, float, bool, bool) {}
 void DX8Wrapper::Set_World_Identity() { render_state_changed |= WORLD_IDENTITY | WORLD_CHANGED; }
 void DX8Wrapper::Set_View_Identity() { render_state_changed |= VIEW_IDENTITY | VIEW_CHANGED; }
-void DX8Wrapper::Apply_Default_State() {}
+void DX8Wrapper::Apply_Default_State()
+{
+	if (!s_glState.initialized) return;
+	glUseProgram(s_glState.shader.program);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDepthMask(GL_TRUE);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CW);
+}
 bool DX8Wrapper::Validate_Device(void) { return true; }
 void DX8Wrapper::Invalidate_Cached_Render_States(void) {}
 void DX8Wrapper::Reset_Statistics() {}
@@ -366,21 +459,49 @@ FVFInfoClass::FVFInfoClass(unsigned fvf)
 	  diffuse_offset(0), specular_offset(0) {}
 void FVFInfoClass::Get_FVF_Name(StringClass& name) const { name = "FVF_STUB"; }
 
+// ===== GL buffer tracking =====
+static unsigned s_glVBOCount = 0;
+static unsigned s_glVBOVertices = 0;
+static unsigned s_glVBOMemory = 0;
+static unsigned s_glIBOCount = 0;
+static unsigned s_glIBOIndices = 0;
+static unsigned s_glIBOMemory = 0;
+
 // ===== VertexBufferClass =====
 VertexBufferClass::VertexBufferClass(unsigned t, unsigned fvf, unsigned short vc)
 	: type(t), VertexCount(vc), engine_refs(0) { fvf_info = new FVFInfoClass(fvf); }
 VertexBufferClass::~VertexBufferClass() { delete fvf_info; }
-unsigned VertexBufferClass::Get_Total_Buffer_Count() { return 0; }
-unsigned VertexBufferClass::Get_Total_Allocated_Vertices() { return 0; }
-unsigned VertexBufferClass::Get_Total_Allocated_Memory() { return 0; }
+unsigned VertexBufferClass::Get_Total_Buffer_Count() { return s_glVBOCount; }
+unsigned VertexBufferClass::Get_Total_Allocated_Vertices() { return s_glVBOVertices; }
+unsigned VertexBufferClass::Get_Total_Allocated_Memory() { return s_glVBOMemory; }
 void VertexBufferClass::Add_Engine_Ref() const { const_cast<VertexBufferClass*>(this)->engine_refs++; }
 void VertexBufferClass::Release_Engine_Ref() const { const_cast<VertexBufferClass*>(this)->engine_refs--; }
-VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass*, int) : Vertices(nullptr) {}
-VertexBufferClass::WriteLockClass::~WriteLockClass() {}
-VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass*, unsigned, unsigned) : Vertices(nullptr) {}
-VertexBufferClass::AppendLockClass::~AppendLockClass() {}
+VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* vb, int)
+	: Vertices(nullptr)
+{
+	if (vb && vb->fvf_info) {
+		unsigned size = vb->VertexCount * vb->fvf_info->Get_FVF_Size();
+		Vertices = (VertexFormatXYZNDUV2*)new unsigned char[size];
+	}
+}
+VertexBufferClass::WriteLockClass::~WriteLockClass()
+{
+	delete[] (unsigned char*)Vertices;
+}
+VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* vb, unsigned start, unsigned count)
+	: Vertices(nullptr)
+{
+	if (vb && vb->fvf_info) {
+		unsigned size = count * vb->fvf_info->Get_FVF_Size();
+		Vertices = (VertexFormatXYZNDUV2*)new unsigned char[size];
+	}
+}
+VertexBufferClass::AppendLockClass::~AppendLockClass()
+{
+	delete[] (unsigned char*)Vertices;
+}
 
-// DX8VertexBufferClass
+// DX8VertexBufferClass - uses GL VBOs
 DX8VertexBufferClass::DX8VertexBufferClass(unsigned fvf, unsigned short vc, UsageType)
 	: VertexBufferClass(BUFFER_TYPE_DX8, fvf, vc), VertexBuffer(nullptr) {}
 DX8VertexBufferClass::DX8VertexBufferClass(const Vector3*, const Vector3*, const Vector2*, unsigned short vc, UsageType)
@@ -422,17 +543,35 @@ DynamicVBAccessClass::WriteLockClass::~WriteLockClass() {}
 // ===== IndexBufferClass =====
 IndexBufferClass::IndexBufferClass(unsigned t, unsigned short ic) : type(t), index_count(ic), engine_refs(0) {}
 IndexBufferClass::~IndexBufferClass() {}
-unsigned IndexBufferClass::Get_Total_Buffer_Count() { return 0; }
-unsigned IndexBufferClass::Get_Total_Allocated_Indices() { return 0; }
-unsigned IndexBufferClass::Get_Total_Allocated_Memory() { return 0; }
+unsigned IndexBufferClass::Get_Total_Buffer_Count() { return s_glIBOCount; }
+unsigned IndexBufferClass::Get_Total_Allocated_Indices() { return s_glIBOIndices; }
+unsigned IndexBufferClass::Get_Total_Allocated_Memory() { return s_glIBOMemory; }
 void IndexBufferClass::Add_Engine_Ref() const { const_cast<IndexBufferClass*>(this)->engine_refs++; }
 void IndexBufferClass::Release_Engine_Ref() const { const_cast<IndexBufferClass*>(this)->engine_refs--; }
 void IndexBufferClass::Copy(unsigned int*, unsigned, unsigned) {}
 void IndexBufferClass::Copy(unsigned short*, unsigned, unsigned) {}
-IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass*, int) : Indices(nullptr) {}
-IndexBufferClass::WriteLockClass::~WriteLockClass() {}
-IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass*, unsigned, unsigned) : Indices(nullptr) {}
-IndexBufferClass::AppendLockClass::~AppendLockClass() {}
+IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* ib, int)
+	: Indices(nullptr)
+{
+	if (ib) {
+		Indices = new unsigned short[ib->index_count];
+	}
+}
+IndexBufferClass::WriteLockClass::~WriteLockClass()
+{
+	delete[] Indices;
+}
+IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* ib, unsigned start, unsigned count)
+	: Indices(nullptr)
+{
+	if (ib) {
+		Indices = new unsigned short[count];
+	}
+}
+IndexBufferClass::AppendLockClass::~AppendLockClass()
+{
+	delete[] Indices;
+}
 
 DX8IndexBufferClass::DX8IndexBufferClass(unsigned short ic, UsageType)
 	: IndexBufferClass(BUFFER_TYPE_DX8, ic), index_buffer(nullptr) {}

@@ -43,26 +43,26 @@ set(WW3D2_SRC
     #distlod.cpp
     #distlod.h
     #dllist.h
-    dx8caps.cpp
+    #dx8caps.cpp # Conditionally compiled below (WIN32 only)
     dx8caps.h
-    dx8fvf.cpp
+    #dx8fvf.cpp # Conditionally compiled below (WIN32 only)
     dx8fvf.h
-    dx8indexbuffer.cpp
+    #dx8indexbuffer.cpp # Conditionally compiled below (WIN32 only)
     dx8indexbuffer.h
     #dx8list.h
     #dx8polygonrenderer.cpp
     #dx8polygonrenderer.h
-    dx8renderer.cpp
+    #dx8renderer.cpp # Conditionally compiled below (WIN32 only)
     dx8renderer.h
-    dx8rendererdebugger.cpp
+    #dx8rendererdebugger.cpp # Conditionally compiled below (WIN32 only)
     dx8rendererdebugger.h
     #dx8texman.cpp
     #dx8texman.h
-    dx8vertexbuffer.cpp
+    #dx8vertexbuffer.cpp # Conditionally compiled below (WIN32 only)
     dx8vertexbuffer.h
     #dx8webbrowser.cpp
     #dx8webbrowser.h
-    dx8wrapper.cpp
+    #dx8wrapper.cpp # Conditionally compiled below (WIN32 only)
     dx8wrapper.h
     #dynamesh.cpp
     #dynamesh.h
@@ -238,6 +238,23 @@ set_target_properties(z_ww3d2 PROPERTIES OUTPUT_NAME ww3d2)
 
 target_sources(z_ww3d2 PRIVATE ${WW3D2_SRC})
 
+# DX8 implementation - real D3D8 on Windows, stubs on other platforms
+if(WIN32)
+    target_sources(z_ww3d2 PRIVATE
+        dx8caps.cpp
+        dx8fvf.cpp
+        dx8indexbuffer.cpp
+        dx8renderer.cpp
+        dx8rendererdebugger.cpp
+        dx8vertexbuffer.cpp
+        dx8wrapper.cpp
+    )
+else()
+    target_sources(z_ww3d2 PRIVATE
+        ${CMAKE_SOURCE_DIR}/Core/Libraries/Source/WWVegas/WW3D2/dx8_stubs.cpp
+    )
+endif()
+
 target_compile_definitions(z_ww3d2 PRIVATE
     $<$<BOOL:${IS_VS6_BUILD}>:WINVER=0x0500>
 )
@@ -250,8 +267,10 @@ target_precompile_headers(z_ww3d2 PRIVATE
     [["win.h"]]
     [["WWCommon.h"]]
     [["wwstring.h"]]
-    <windows.h>
 )
+if(WIN32)
+    target_precompile_headers(z_ww3d2 APPEND PRIVATE <windows.h>)
+endif()
 
 target_link_libraries(z_ww3d2 PRIVATE
     core_wwdebug

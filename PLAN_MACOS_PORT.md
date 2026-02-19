@@ -13,10 +13,29 @@
 - [x] **Stub targets** for `milesstub`, `binkstub`, `d3d8lib` on non-Windows platforms
 
 ### Phase 2: Platform Abstraction Layer
-- [ ] **2.1** Windowing and event loop abstraction (SDL2)
-- [ ] **2.2** Threading and synchronization abstraction (std::thread/mutex)
-- [ ] **2.3** Registry / configuration abstraction
-- [ ] **2.4** Networking abstraction (Winsock → BSD sockets)
+- [x] **2.1** Windowing and event loop abstraction (SDL2)
+  - Created `SDLGameEngine.h/cpp` with SDL event pump, window management
+  - Created `SDLMain.cpp` portable entry point replacing WinMain
+  - Wired into CMakeLists for non-Windows builds
+- [x] **2.2** Threading and synchronization abstraction
+  - `CriticalSection.h`: `std::recursive_mutex` on non-Windows (Generals + GeneralsMD)
+  - `ScopedMutex.h`: `std::mutex` on non-Windows (Generals + GeneralsMD)
+  - WWVegas `MutexClass`: `std::recursive_timed_mutex` on Unix
+  - WWVegas `CriticalSectionClass`: `std::recursive_mutex` on Unix
+  - WWVegas `ThreadClass`: `pthread_create` on Unix, `sched_yield()` for Switch_Thread
+  - `WorkerProcess`: Guarded behind `_WIN32` with non-Windows stub
+  - `ClientInstance`: POSIX file locking (`flock`) implementation
+  - `MiniDumper`: Disabled on macOS via `RTS_CRASHDUMP_ENABLE=OFF`
+- [x] **2.3** Registry / configuration abstraction
+  - Game engine `registry.cpp`: Return defaults on non-Windows (Generals + GeneralsMD)
+  - WWVegas `RegistryClass`: Full stub implementation returning defaults on non-Windows
+  - `ReplaySimulation.cpp`: Worker process path guarded behind `_WIN32`
+- [x] **2.4** Networking abstraction (Winsock → BSD sockets)
+  - Created `socket_compat.h` in Dependencies/Utility with POSIX equivalents:
+    `closesocket→close`, `ioctlsocket→fcntl` wrapper, `WSAStartup/Cleanup` as no-ops,
+    `WSAGetLastError→errno`, WSA error code mappings, `SOCKET` type, `MAKEWORD/LOBYTE/HIBYTE`
+  - Included from `compat.h` (auto-available on non-Windows via `always.h`)
+  - Guarded `<winsock.h>` includes in `ftp.h`, GameSpy thread files
 
 ### Phase 3: Graphics Rendering
 - [ ] **3.1** Create rendering abstraction interface

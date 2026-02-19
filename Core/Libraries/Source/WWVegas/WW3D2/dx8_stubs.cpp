@@ -96,6 +96,111 @@ D3DMATRIX DX8Wrapper::DX8Transforms[D3DTS_WORLD + 1] = {};
 DX8_Stats DX8Wrapper::stats;
 #endif
 
+// ===== GL Shader State Translation =====
+// Translates WW3D ShaderClass bitfield to OpenGL state calls
+
+static GLenum GL_DepthFunc(ShaderClass::DepthCompareType dc)
+{
+	switch (dc) {
+		case ShaderClass::PASS_NEVER:    return GL_NEVER;
+		case ShaderClass::PASS_LESS:     return GL_LESS;
+		case ShaderClass::PASS_EQUAL:    return GL_EQUAL;
+		case ShaderClass::PASS_LEQUAL:   return GL_LEQUAL;
+		case ShaderClass::PASS_GREATER:  return GL_GREATER;
+		case ShaderClass::PASS_NOTEQUAL: return GL_NOTEQUAL;
+		case ShaderClass::PASS_GEQUAL:   return GL_GEQUAL;
+		case ShaderClass::PASS_ALWAYS:   return GL_ALWAYS;
+		default: return GL_LEQUAL;
+	}
+}
+
+static GLenum GL_SrcBlend(ShaderClass::SrcBlendFuncType sb)
+{
+	switch (sb) {
+		case ShaderClass::SRCBLEND_ZERO:                return GL_ZERO;
+		case ShaderClass::SRCBLEND_ONE:                 return GL_ONE;
+		case ShaderClass::SRCBLEND_SRC_ALPHA:           return GL_SRC_ALPHA;
+		case ShaderClass::SRCBLEND_ONE_MINUS_SRC_ALPHA: return GL_ONE_MINUS_SRC_ALPHA;
+		default: return GL_ONE;
+	}
+}
+
+static GLenum GL_DstBlend(ShaderClass::DstBlendFuncType db)
+{
+	switch (db) {
+		case ShaderClass::DSTBLEND_ZERO:                return GL_ZERO;
+		case ShaderClass::DSTBLEND_ONE:                 return GL_ONE;
+		case ShaderClass::DSTBLEND_SRC_COLOR:           return GL_SRC_COLOR;
+		case ShaderClass::DSTBLEND_ONE_MINUS_SRC_COLOR: return GL_ONE_MINUS_SRC_COLOR;
+		case ShaderClass::DSTBLEND_SRC_ALPHA:           return GL_SRC_ALPHA;
+		case ShaderClass::DSTBLEND_ONE_MINUS_SRC_ALPHA: return GL_ONE_MINUS_SRC_ALPHA;
+		default: return GL_ZERO;
+	}
+}
+
+static void GL_ApplyShaderState(const ShaderClass& shader)
+{
+	if (!s_glState.initialized) return;
+
+	// Depth comparison
+	auto dc = shader.Get_Depth_Compare();
+	glDepthFunc(GL_DepthFunc(dc));
+	if (dc == ShaderClass::PASS_ALWAYS && shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_DISABLE) {
+		glDisable(GL_DEPTH_TEST);
+	} else {
+		glEnable(GL_DEPTH_TEST);
+	}
+
+	// Depth write mask
+	glDepthMask(shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE ? GL_TRUE : GL_FALSE);
+
+	// Color write mask
+	if (shader.Get_Color_Mask() == ShaderClass::COLOR_WRITE_ENABLE) {
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	} else {
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	}
+
+	// Blending
+	auto srcBlend = shader.Get_Src_Blend_Func();
+	auto dstBlend = shader.Get_Dst_Blend_Func();
+	if (srcBlend == ShaderClass::SRCBLEND_ONE && dstBlend == ShaderClass::DSTBLEND_ZERO) {
+		glDisable(GL_BLEND);
+	} else {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SrcBlend(srcBlend), GL_DstBlend(dstBlend));
+	}
+
+	// Alpha test (emulated in fragment shader)
+	bool alphaTest = (shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE);
+	glUniform1i(s_glState.shader.loc_alphaTestEnable, alphaTest ? 1 : 0);
+
+	// Texturing
+	bool textured = (shader.Get_Texturing() == ShaderClass::TEXTURING_ENABLE);
+	glUniform1i(s_glState.shader.loc_hasTexture, textured ? 1 : 0);
+
+	// Fog
+	auto fogFunc = shader.Get_Fog_Func();
+	bool fogEnabled = (fogFunc != ShaderClass::FOG_DISABLE);
+	glUniform1i(s_glState.shader.loc_fogEnable, fogEnabled ? 1 : 0);
+	if (fogEnabled) {
+		float fc[4] = {
+			((DX8Wrapper::FogColor >> 16) & 0xFF) / 255.0f,
+			((DX8Wrapper::FogColor >> 8) & 0xFF) / 255.0f,
+			(DX8Wrapper::FogColor & 0xFF) / 255.0f,
+			1.0f
+		};
+		glUniform4fv(s_glState.shader.loc_fogColor, 1, fc);
+	}
+
+	// Back-face culling
+	if (shader.Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE) {
+		glEnable(GL_CULL_FACE);
+	} else {
+		glDisable(GL_CULL_FACE);
+	}
+}
+
 // ===== DX8Wrapper methods =====
 bool DX8Wrapper::Init(void* hwnd, bool lite)
 {
@@ -267,8 +372,19 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		glUniformMatrix4fv(s_glState.shader.loc_view, 1, GL_FALSE, s_glState.viewMatrix);
 	}
 
-	// Update fog state
-	glUniform1i(s_glState.shader.loc_fogEnable, FogEnable ? 1 : 0);
+	// Update projection matrix (stored as DX8Transforms[D3DTS_PROJECTION])
+	// Note: projection is often set via camera, check if it changed
+	GL_D3DMatrixToGL((const float*)&ProjectionMatrix, s_glState.projectionMatrix);
+	glUniformMatrix4fv(s_glState.shader.loc_projection, 1, GL_FALSE, s_glState.projectionMatrix);
+
+	// Apply shader state (blend, depth, cull, alpha test, fog, texturing)
+	if (render_state_changed & SHADER_CHANGED) {
+		GL_ApplyShaderState(render_state.shader);
+	}
+
+	// Update ambient color uniform
+	float amb[4] = { Ambient_Color.X, Ambient_Color.Y, Ambient_Color.Z, 1.0f };
+	glUniform4fv(s_glState.shader.loc_ambientColor, 1, amb);
 
 	render_state_changed = 0;
 }

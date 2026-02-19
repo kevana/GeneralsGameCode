@@ -38,12 +38,16 @@
 #include "INI.h"
 #include "inisup.h"
 #include <assert.h>
+
+#ifdef _WIN32
 #include <windows.h>
+#endif
 
 //#include "wwdebug.h"
 
 bool RegistryClass::IsLocked = false;
 
+#ifdef _WIN32
 
 bool RegistryClass::Exists(const char* sub_key)
 {
@@ -61,7 +65,7 @@ bool RegistryClass::Exists(const char* sub_key)
 /*
 **
 */
-RegistryClass::RegistryClass( const char * sub_key, bool create ) :
+ RegistryClass::RegistryClass( const char * sub_key, bool create ) :
 	IsValid( false )
 {
 	HKEY key;
@@ -340,29 +344,6 @@ void	RegistryClass::Set_String( const WCHAR * name, const WCHAR *value )
 }
 
 
-
-
-
-
-
-
-
-/***********************************************************************************************
- * RegistryClass::Save_Registry_Values -- Save values in a key to an .ini file                 *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Handle to key                                                                     *
- *           Path to key                                                                       *
- *           INI                                                                               *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   11/21/2001 3:32PM ST : Created                                                            *
- *=============================================================================================*/
 void RegistryClass::Save_Registry_Values(HKEY key, char *path, INIClass *ini)
 {
 	int index = 0;
@@ -421,24 +402,6 @@ void RegistryClass::Save_Registry_Values(HKEY key, char *path, INIClass *ini)
 }
 
 
-
-
-
-/***********************************************************************************************
- * RegistryClass::Save_Registry_Tree -- Save out a whole chunk or registry as an .INI          *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Registry path                                                                     *
- *           INI to write to                                                                   *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   11/21/2001 3:33PM ST : Created                                                            *
- *=============================================================================================*/
 void RegistryClass::Save_Registry_Tree(char *path, INIClass *ini)
 {
 	HKEY base_key;
@@ -501,24 +464,6 @@ void RegistryClass::Save_Registry_Tree(char *path, INIClass *ini)
 }
 
 
-
-
-
-/***********************************************************************************************
- * RegistryClass::Save_Registry -- Save a chunk of registry to an .ini file.                   *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    File name                                                                         *
- *           Registry path                                                                     *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   11/21/2001 3:36PM ST : Created                                                            *
- *=============================================================================================*/
 void RegistryClass::Save_Registry(const char *filename, char *path)
 {
 	RawFileClass file(filename);
@@ -528,21 +473,6 @@ void RegistryClass::Save_Registry(const char *filename, char *path)
 }
 
 
-
-/***********************************************************************************************
- * RegistryClass::Load_Registry -- Load a chunk of registry from an .INI file                  *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   11/21/2001 3:35PM ST : Created                                                            *
- *=============================================================================================*/
 void RegistryClass::Load_Registry(const char *filename, char *old_path, char *new_path)
 {
 	if (!IsLocked) {
@@ -607,24 +537,6 @@ void RegistryClass::Load_Registry(const char *filename, char *old_path, char *ne
 }
 
 
-
-
-
-
-/***********************************************************************************************
- * RegistryClass::Delete_Registry_Values -- Delete all values under the given key              *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Key handle                                                                        *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   11/21/2001 3:37PM ST : Created                                                            *
- *=============================================================================================*/
 void RegistryClass::Delete_Registry_Values(HKEY key)
 {
 	int index = 0;
@@ -646,22 +558,6 @@ void RegistryClass::Delete_Registry_Values(HKEY key)
 }
 
 
-
-
-/***********************************************************************************************
- * RegistryClass::Delete_Registry_Tree -- Delete all values and sub keys of a registry key     *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Registry path to delete                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: !!!!! DANGER DANGER !!!!!                                                         *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   11/21/2001 3:38PM ST : Created                                                            *
- *=============================================================================================*/
 void RegistryClass::Delete_Registry_Tree(char *path)
 {
 	if (!IsLocked) {
@@ -732,15 +628,114 @@ void RegistryClass::Delete_Registry_Tree(char *path)
 	}
 }
 
+#else // Non-Windows: stub implementations returning defaults
 
+bool RegistryClass::Exists(const char* sub_key)
+{
+	return false;
+}
 
+RegistryClass::RegistryClass( const char * sub_key, bool create ) :
+	Key(0), IsValid( false )
+{
+}
 
+RegistryClass::~RegistryClass( void )
+{
+}
 
+int RegistryClass::Get_Int( const char * name, int def_value )
+{
+	return def_value;
+}
 
+void RegistryClass::Set_Int( const char * name, int value )
+{
+}
 
+bool RegistryClass::Get_Bool( const char * name, bool def_value )
+{
+	return def_value;
+}
 
+void RegistryClass::Set_Bool( const char * name, bool value )
+{
+}
 
+float RegistryClass::Get_Float( const char * name, float def_value )
+{
+	return def_value;
+}
 
+void RegistryClass::Set_Float( const char * name, float value )
+{
+}
 
+int RegistryClass::Get_Bin_Size( const char * name )
+{
+	return 0;
+}
 
+void RegistryClass::Get_Bin( const char * name, void *buffer, int buffer_size )
+{
+}
 
+void RegistryClass::Set_Bin( const char * name, const void *buffer, int buffer_size )
+{
+}
+
+void RegistryClass::Get_String( const char * name, StringClass &string, const char *default_string )
+{
+	string = (default_string == nullptr) ? "" : default_string;
+}
+
+char *RegistryClass::Get_String( const char * name, char *value, int value_size,
+   const char * default_string )
+{
+	if (default_string == nullptr) {
+		*value = 0;
+	} else {
+		assert(strlen(default_string) < (unsigned int) value_size);
+		strcpy(value, default_string);
+	}
+	return value;
+}
+
+void RegistryClass::Set_String( const char * name, const char *value )
+{
+}
+
+void RegistryClass::Get_String( const WCHAR * name, WideStringClass &string, const WCHAR *default_string )
+{
+	string = (default_string == nullptr) ? L"" : default_string;
+}
+
+void RegistryClass::Set_String( const WCHAR * name, const WCHAR *value )
+{
+}
+
+void RegistryClass::Get_Value_List( DynamicVectorClass<StringClass> &list )
+{
+}
+
+void RegistryClass::Delete_Value( const char * name)
+{
+}
+
+void RegistryClass::Deleta_All_Values( void )
+{
+}
+
+void RegistryClass::Delete_Registry_Tree(char *path)
+{
+}
+
+void RegistryClass::Load_Registry(const char *filename, char *old_path, char *new_path)
+{
+}
+
+void RegistryClass::Save_Registry(const char *filename, char *path)
+{
+}
+
+#endif // _WIN32

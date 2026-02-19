@@ -44,6 +44,10 @@ extern GameEngine *TheGameEngine;
 // GameMain is defined in GameMain.cpp
 extern Int GameMain( void );
 
+// Global window handle, equivalent to Win32's HWND ApplicationHWnd
+// On SDL, this points to the SDL_Window. Referenced by W3DDisplay etc.
+HWND ApplicationHWnd = nullptr;
+
 // The SDL game engine instance (analogous to TheWin32Mouse etc.)
 static SDLGameEngine *TheSDLEngine = nullptr;
 static bool isSDLMainActive = true;

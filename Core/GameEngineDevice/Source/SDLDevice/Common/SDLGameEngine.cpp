@@ -60,6 +60,30 @@ SDLGameEngine::~SDLGameEngine()
 //-------------------------------------------------------------------------------------------------
 void SDLGameEngine::init( void )
 {
+	// Set OpenGL attributes before window creation
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+
+	// Create the game window with OpenGL support
+	m_window = SDL_CreateWindow(
+		"Command & Conquer Generals",
+		SDL_WINDOWPOS_CENTERED,
+		SDL_WINDOWPOS_CENTERED,
+		800, 600,
+		SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
+	);
+
+	if (m_window)
+	{
+		// Set the global ApplicationHWnd so W3DDisplay can pass it to WW3D::Init
+		extern HWND ApplicationHWnd;
+		ApplicationHWnd = (HWND)m_window;
+	}
+
 	// extending functionality
 	GameEngine::init();
 }

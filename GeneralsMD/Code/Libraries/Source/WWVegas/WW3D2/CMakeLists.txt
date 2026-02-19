@@ -253,6 +253,7 @@ else()
     target_sources(z_ww3d2 PRIVATE
         ${CMAKE_SOURCE_DIR}/Core/Libraries/Source/WWVegas/WW3D2/dx8_stubs.cpp
     )
+    target_link_libraries(z_ww3d2 PRIVATE gl_loader)
 endif()
 
 target_compile_definitions(z_ww3d2 PRIVATE

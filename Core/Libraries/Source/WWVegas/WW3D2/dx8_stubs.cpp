@@ -1,7 +1,8 @@
 /*
 **	Command & Conquer Generals / Zero Hour
-**	Non-Windows stub implementations for DX8 rendering classes.
-**	Real implementations are in dx8wrapper.cpp, dx8caps.cpp, etc. (Windows only).
+**	Non-Windows OpenGL rendering implementations for DX8 classes.
+**	Replaces the D3D8 implementations (dx8wrapper.cpp, dx8caps.cpp, etc.)
+**	with OpenGL 3.3 core profile via SDL2.
 */
 
 #ifndef _WIN32
@@ -15,6 +16,13 @@
 #include "rddesc.h"
 #include "surfaceclass.h"
 #include "light.h"
+
+#include <SDL.h>
+#include <gl_compat.h>
+
+// ===== OpenGL context state =====
+static SDL_GLContext s_glContext = nullptr;
+static SDL_Window* s_sdlWindow = nullptr;
 
 // ===== Globals =====
 unsigned number_of_DX8_calls = 0;
@@ -87,17 +95,92 @@ DX8_Stats DX8Wrapper::stats;
 #endif
 
 // ===== DX8Wrapper methods =====
-bool DX8Wrapper::Init(void*, bool) { return false; }
-void DX8Wrapper::Shutdown(void) {}
+bool DX8Wrapper::Init(void* hwnd, bool lite)
+{
+	s_sdlWindow = (SDL_Window*)hwnd;
+	Hwnd = hwnd;
+
+	if (!s_sdlWindow) return false;
+
+	// Create OpenGL context
+	s_glContext = SDL_GL_CreateContext(s_sdlWindow);
+	if (!s_glContext) {
+		return false;
+	}
+
+	SDL_GL_MakeCurrent(s_sdlWindow, s_glContext);
+	SDL_GL_SetSwapInterval(1); // vsync
+
+	// Set default GL state
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearDepth(1.0);
+
+	int w, h;
+	SDL_GetWindowSize(s_sdlWindow, &w, &h);
+	ResolutionWidth = w;
+	ResolutionHeight = h;
+
+	IsInitted = true;
+	_EnableTriangleDraw = true;
+
+	return true;
+}
+
+void DX8Wrapper::Shutdown(void)
+{
+	if (s_glContext) {
+		SDL_GL_DeleteContext(s_glContext);
+		s_glContext = nullptr;
+	}
+	s_sdlWindow = nullptr;
+	IsInitted = false;
+}
+
 void DX8Wrapper::Do_Onetime_Device_Dependent_Inits(void) {}
 void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns(void) {}
-bool DX8Wrapper::Has_Stencil(void) { return false; }
+bool DX8Wrapper::Has_Stencil(void) { return true; }
 void DX8Wrapper::Get_Format_Name(unsigned int, StringClass*) {}
+
 void DX8Wrapper::Begin_Scene(void) {}
-void DX8Wrapper::End_Scene(bool) {}
-void DX8Wrapper::Flip_To_Primary(void) {}
-void DX8Wrapper::Clear(bool, bool, const Vector3&, float, float, unsigned int) {}
-void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8*) {}
+
+void DX8Wrapper::End_Scene(bool flip)
+{
+	if (flip) Flip_To_Primary();
+}
+
+void DX8Wrapper::Flip_To_Primary(void)
+{
+	if (s_sdlWindow) {
+		SDL_GL_SwapWindow(s_sdlWindow);
+	}
+}
+
+void DX8Wrapper::Clear(bool clearColor, bool clearZ, const Vector3& color, float, float alpha, unsigned int)
+{
+	GLbitfield mask = 0;
+	if (clearColor) {
+		glClearColor(color.X, color.Y, color.Z, alpha);
+		mask |= GL_COLOR_BUFFER_BIT;
+	}
+	if (clearZ) {
+		glClearDepth(1.0);
+		mask |= GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
+	}
+	if (mask) {
+		glClear(mask);
+	}
+}
+
+void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* vp)
+{
+	if (vp) {
+		glViewport(vp->X, vp->Y, vp->Width, vp->Height);
+	}
+}
 void DX8Wrapper::Set_Vertex_Buffer(const VertexBufferClass*) {}
 void DX8Wrapper::Set_Vertex_Buffer(const DynamicVBAccessClass&) {}
 void DX8Wrapper::Set_Index_Buffer(const IndexBufferClass*, unsigned short) {}
@@ -152,26 +235,54 @@ unsigned DX8Wrapper::Get_Last_Frame_DX8_Calls() { return 0; }
 unsigned DX8Wrapper::Get_Last_Frame_Draw_Calls() { return 0; }
 unsigned long DX8Wrapper::Get_FrameCount(void) { return FrameCount; }
 WW3DFormat DX8Wrapper::getBackBufferFormat(void) { return WW3D_FORMAT_UNKNOWN; }
-bool DX8Wrapper::Reset_Device(bool) { return false; }
+bool DX8Wrapper::Reset_Device(bool) { return true; }
 void DX8Wrapper::Compute_Caps(WW3DFormat) {}
-void DX8Wrapper::Set_Swap_Interval(int) {}
-int DX8Wrapper::Get_Swap_Interval(void) { return 0; }
+void DX8Wrapper::Set_Swap_Interval(int interval)
+{
+	if (s_sdlWindow && s_glContext) {
+		SDL_GL_SetSwapInterval(interval);
+	}
+}
+int DX8Wrapper::Get_Swap_Interval(void) { return SDL_GL_GetSwapInterval(); }
 void DX8Wrapper::Set_Polygon_Mode(int) {}
-bool DX8Wrapper::Create_Device(void) { return false; }
+bool DX8Wrapper::Create_Device(void) { return IsInitted; }
 void DX8Wrapper::Release_Device(void) {}
 void DX8Wrapper::Enumerate_Devices() {}
 void DX8Wrapper::Set_Default_Global_Render_States(void) {}
-bool DX8Wrapper::Set_Any_Render_Device(void) { return false; }
-bool DX8Wrapper::Set_Render_Device(const char*, int, int, int, int, bool) { return false; }
-bool DX8Wrapper::Set_Render_Device(int, int, int, int, int, bool, bool, bool) { return false; }
+bool DX8Wrapper::Set_Any_Render_Device(void) { return IsInitted; }
+bool DX8Wrapper::Set_Render_Device(const char*, int w, int h, int bits, int, bool windowed)
+{
+	if (!IsInitted) return false;
+	ResolutionWidth = w; ResolutionHeight = h; BitDepth = bits; IsWindowed = windowed;
+	if (s_sdlWindow) SDL_SetWindowSize(s_sdlWindow, w, h);
+	glViewport(0, 0, w, h);
+	CurRenderDevice = 0;
+	return true;
+}
+bool DX8Wrapper::Set_Render_Device(int dev, int w, int h, int bits, int, bool windowed, bool, bool)
+{
+	if (!IsInitted) return false;
+	ResolutionWidth = w; ResolutionHeight = h; BitDepth = bits; IsWindowed = windowed;
+	if (s_sdlWindow) SDL_SetWindowSize(s_sdlWindow, w, h);
+	glViewport(0, 0, w, h);
+	CurRenderDevice = dev;
+	return true;
+}
 bool DX8Wrapper::Set_Next_Render_Device(void) { return false; }
 bool DX8Wrapper::Toggle_Windowed(void) { return false; }
-int DX8Wrapper::Get_Render_Device_Count(void) { return 0; }
+int DX8Wrapper::Get_Render_Device_Count(void) { return 1; }
 int DX8Wrapper::Get_Render_Device(void) { return CurRenderDevice; }
 static RenderDeviceDescClass _dummyDesc;
 const RenderDeviceDescClass& DX8Wrapper::Get_Render_Device_Desc(int) { return _dummyDesc; }
-const char* DX8Wrapper::Get_Render_Device_Name(int) { return "OpenGL"; }
-bool DX8Wrapper::Set_Device_Resolution(int, int, int, int, bool) { return false; }
+const char* DX8Wrapper::Get_Render_Device_Name(int) { return "OpenGL 3.3"; }
+bool DX8Wrapper::Set_Device_Resolution(int w, int h, int bits, int, bool windowed)
+{
+	if (!IsInitted) return false;
+	ResolutionWidth = w; ResolutionHeight = h; BitDepth = bits; IsWindowed = windowed;
+	if (s_sdlWindow) SDL_SetWindowSize(s_sdlWindow, w, h);
+	glViewport(0, 0, w, h);
+	return true;
+}
 void DX8Wrapper::Get_Device_Resolution(int& w, int& h, int& b, bool& win) { w = ResolutionWidth; h = ResolutionHeight; b = BitDepth; win = IsWindowed; }
 void DX8Wrapper::Get_Render_Target_Resolution(int& w, int& h, int& b, bool& win) { w = ResolutionWidth; h = ResolutionHeight; b = BitDepth; win = IsWindowed; }
 void DX8Wrapper::Resize_And_Position_Window() {}

@@ -59,9 +59,24 @@
   - `ApplicationHWnd` defined in `SDLMain.cpp` pointing to SDL_Window
   - DX8Wrapper::Init creates GL context, sets default state
   - Basic GL operations: Clear, Set_Viewport, Flip_To_Primary, device setup
-- [ ] **3.4** Implement core GL rendering in DX8Wrapper stubs
+- [x] **3.4** Core GL rendering infrastructure
+  - Created `gl_render.h` with GLSL shader program management, compilation helpers,
+    vertex attribute layout definitions, and D3D→GL matrix conversion
+  - Basic vertex shader: MVP transform, pass-through normals/UVs/vertex color
+  - Basic fragment shader: texture × vertex color, alpha test, linear fog
+  - `GLRenderState` struct tracking transforms, blend, depth, cull, fog state
+  - Shader initialization and default uniform setup in DX8Wrapper::Init
+  - `Apply_Render_State_Changes` updates transform matrices from D3D state
+  - Buffer lock classes allocate memory for vertex/index data upload
 - [ ] **3.5** Shader translation (fixed-function → GLSL)
+  - Map ShaderClass bitfield states to GL calls (blend, depth, cull, alpha test)
+  - Implement texture stage state translation for multi-texture blending
+  - Handle secondary gradient and detail color/alpha operations
 - [ ] **3.6** Texture format handling for OpenGL
+  - Map D3DFMT_* to GL_* format constants (ARGB→RGBA, DXT1/3/5→S3TC)
+  - Implement GL texture creation in _Create_DX8_Texture stubs
+  - Handle BGRA→RGBA byte order swizzling
+  - Bind textures via glActiveTexture + glBindTexture in Set_DX8_Texture
 
 ### Phase 4–8: Audio, Input, Video, Packaging, Testing
 - [ ] Not yet started

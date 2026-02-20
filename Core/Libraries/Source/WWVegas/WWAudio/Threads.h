@@ -32,6 +32,8 @@
 
 #pragma once
 
+#ifdef _WIN32
+
 #include "windows.h"
 #include "Vector.h"
 #include "mutex.h"
@@ -102,3 +104,5 @@ class WWAudioThreadsClass
 		static CriticalSectionClass	m_ListMutex;
 		static bool							m_IsShuttingDown;
 };
+
+#endif // _WIN32

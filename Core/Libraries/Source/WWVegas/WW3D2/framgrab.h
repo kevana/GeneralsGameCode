@@ -38,6 +38,8 @@
 
 #include "always.h"
 
+#ifdef _WIN32
+
 #if defined (_MSC_VER)
 #pragma warning (push, 3)	// (gth) system headers complain at warning level 4...
 #endif
@@ -97,3 +99,5 @@ protected:
 	void ConvertFrame(void *BitmapPointer);
 
 };
+
+#endif // _WIN32

@@ -31,6 +31,9 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "always.h"
+
+#ifdef _WIN32
+
 #include "Threads.h"
 #include "Utils.h"
 #include <process.h>
@@ -298,4 +301,6 @@ WWAudioThreadsClass::End_Modify_List (void)
 	return ;
 }
 */
+
+#endif // _WIN32
 

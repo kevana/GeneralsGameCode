@@ -85,7 +85,41 @@
     with `glActiveTexture` + `glBindTexture` for stages 0-1
   - S3TC extension constants defined with fallback `#ifndef` guard
 
-### Phase 4–8: Audio, Input, Video, Packaging, Testing
+### Phase 4: Audio System
+- [x] **4.1** Audio manager stub for non-Windows
+  - SDLGameEngine::createAudioManager() returns AudioManagerDummy (no-op)
+  - Prevents null pointer crashes; game boots without audio
+  - Full OpenAL implementation deferred to future iteration
+
+### Phase 5: Input System
+- [x] **5.1** DirectInput compatibility header
+  - Created `Dependencies/d3d8-compat/include/dinput.h` with DIK_* scan code
+    constants and DIMOFS_* mouse data offsets for non-Windows builds
+  - Enables KeyDefs.h to compile without Windows `<dinput.h>`
+- [x] **5.2** SDL keyboard implementation
+  - `SDLKeyboard` class with `getKey()` → SDL_Scancode to DIK_* translation
+  - Complete scan code mapping table (~100 keys including numpad, F-keys,
+    arrow keys, modifiers, special keys)
+  - Event queue populated from SDLGameEngine event loop
+- [x] **5.3** SDL mouse implementation
+  - `SDLMouse` class with `getMouseEvent()` → SDL mouse event translation
+  - Handles motion, left/right/middle buttons, double-click, wheel scroll
+  - Mouse capture via SDL_SetRelativeMouseMode
+- [x] **5.4** Input wiring
+  - SDLGameEngine routes SDL_KEYDOWN/UP, SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN/UP,
+    SDL_MOUSEWHEEL events to SDLKeyboard/SDLMouse
+  - W3DGameClient factory methods gated by `_WIN32` (both Generals and GeneralsMD):
+    Win32 returns DirectInputKeyboard/W3DMouse, non-Win32 returns SDLKeyboard/SDLMouse
+  - BinkVideoPlayer include/factory gated behind `_WIN32`
+  - W3DParticleSystemManager now created on SDL builds
+
+### Phase 6: Video Playback
+- [x] **6.1** Bink video player gated behind WIN32
+  - BinkVideoPlayer.h include and factory method gated in W3DGameClient
+  - GeneralsMD: FFmpeg path used when available, nullptr fallback otherwise
+  - Generals: nullptr returned on non-Windows (no video playback yet)
+
+### Phase 7–8: Packaging, Testing
 - [ ] Not yet started
 
 ---

@@ -68,15 +68,22 @@
   - Shader initialization and default uniform setup in DX8Wrapper::Init
   - `Apply_Render_State_Changes` updates transform matrices from D3D state
   - Buffer lock classes allocate memory for vertex/index data upload
-- [ ] **3.5** Shader translation (fixed-function → GLSL)
-  - Map ShaderClass bitfield states to GL calls (blend, depth, cull, alpha test)
-  - Implement texture stage state translation for multi-texture blending
-  - Handle secondary gradient and detail color/alpha operations
-- [ ] **3.6** Texture format handling for OpenGL
-  - Map D3DFMT_* to GL_* format constants (ARGB→RGBA, DXT1/3/5→S3TC)
-  - Implement GL texture creation in _Create_DX8_Texture stubs
-  - Handle BGRA→RGBA byte order swizzling
-  - Bind textures via glActiveTexture + glBindTexture in Set_DX8_Texture
+- [x] **3.5** Shader translation (fixed-function → GLSL)
+  - Mapped ShaderClass bitfield states to GL calls via `GL_ApplyShaderState()`:
+    depth compare/mask, color mask, blend src/dst functions, alpha test (shader uniform),
+    fog enable/color, cull mode enable/disable
+  - Helper functions: `GL_DepthFunc`, `GL_SrcBlend`, `GL_DstBlend`
+  - Integrated into `Apply_Render_State_Changes` on `SHADER_CHANGED` flag
+- [x] **3.6** Texture format handling for OpenGL
+  - `GLTexture` struct wraps GL texture handle inside `IDirect3DTexture8` with ref counting
+  - `GL_GetTextureFormat` maps WW3DFormat → GL internal format, format, type:
+    A8R8G8B8/X8R8G8B8 → RGBA8+BGRA, R8G8B8 → RGB8+BGR, R5G6B5 → RGB8,
+    A1R5G5B5 → RGB5_A1, A4R4G4B4 → RGBA4, A8/L8 → R8, A8L8 → RG8,
+    DXT1/3/5 → S3TC compressed formats
+  - `_Create_DX8_Texture` creates real GL textures with filtering and mipmaps
+  - Texture binding in `Apply_Render_State_Changes` via `dynamic_cast<GLTexture*>`
+    with `glActiveTexture` + `glBindTexture` for stages 0-1
+  - S3TC extension constants defined with fallback `#ifndef` guard
 
 ### Phase 4–8: Audio, Input, Video, Packaging, Testing
 - [ ] Not yet started

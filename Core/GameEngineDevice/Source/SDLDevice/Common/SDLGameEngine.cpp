@@ -31,6 +31,7 @@
 #include <SDL.h>
 
 #include "SDLDevice/Common/SDLGameEngine.h"
+#include "Common/GameAudio.h"
 #include "Common/PerfTimer.h"
 #include "GameNetwork/LANAPICallbacks.h"
 
@@ -157,8 +158,8 @@ WebBrowser *SDLGameEngine::createWebBrowser( void )
 
 AudioManager *SDLGameEngine::createAudioManager( void )
 {
-	// TODO: Return OpenAL audio manager once implemented (Phase 4)
-	return nullptr;
+	// Use dummy audio manager until OpenAL implementation is complete
+	return NEW AudioManagerDummy;
 }
 
 ParticleSystemManager* SDLGameEngine::createParticleSystemManager( void )

@@ -45,15 +45,24 @@
 #include "W3DDevice/GameClient/W3DGameWindowManager.h"
 #include "W3DDevice/GameClient/W3DGameFont.h"
 #include "W3DDevice/GameClient/W3DDisplayStringManager.h"
+#ifdef _WIN32
 #include "VideoDevice/Bink/BinkVideoPlayer.h"
+#endif
+#ifdef _WIN32
 #include "Win32Device/GameClient/Win32DIKeyboard.h"
 #include "Win32Device/GameClient/Win32DIMouse.h"
 #include "Win32Device/GameClient/Win32Mouse.h"
 #include "W3DDevice/GameClient/W3DMouse.h"
+#else
+#include "SDLDevice/GameClient/SDLKeyboard.h"
+#include "SDLDevice/GameClient/SDLMouse.h"
+#endif
 
 class ThingTemplate;
 
+#ifdef _WIN32
 extern Win32Mouse *TheWin32Mouse;
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // PROTOTYPES /////////////////////////////////////////////////////////////////
@@ -107,7 +116,11 @@ protected:
   /// Manager for display strings
 	virtual DisplayStringManager *createDisplayStringManager( void ) { return NEW W3DDisplayStringManager; }
 
+#ifdef _WIN32
 	virtual VideoPlayerInterface *createVideoPlayer( void ) { return NEW BinkVideoPlayer; }
+#else
+	virtual VideoPlayerInterface *createVideoPlayer( void ) { return nullptr; }
+#endif
 	/// factory for creating the TerrainVisual
 	virtual TerrainVisual *createTerrainVisual( void ) { return NEW W3DTerrainVisual; }
 
@@ -115,6 +128,7 @@ protected:
 
 };
 
+#ifdef _WIN32
 inline Keyboard *W3DGameClient::createKeyboard( void ) { return NEW DirectInputKeyboard; }
 inline Mouse *W3DGameClient::createMouse( void )
 {
@@ -123,3 +137,7 @@ inline Mouse *W3DGameClient::createMouse( void )
 	TheWin32Mouse = mouse;   ///< global cheat for the WndProc()
 	return mouse;
 }
+#else
+inline Keyboard *W3DGameClient::createKeyboard( void ) { return NEW SDLKeyboard; }
+inline Mouse *W3DGameClient::createMouse( void ) { return NEW SDLMouse; }
+#endif

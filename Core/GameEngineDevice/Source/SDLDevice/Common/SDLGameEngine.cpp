@@ -31,9 +31,14 @@
 #include <SDL.h>
 
 #include "SDLDevice/Common/SDLGameEngine.h"
+#include "SDLDevice/GameClient/SDLKeyboard.h"
+#include "SDLDevice/GameClient/SDLMouse.h"
 #include "Common/GameAudio.h"
 #include "Common/PerfTimer.h"
+#include "GameClient/Keyboard.h"
+#include "GameClient/Mouse.h"
 #include "GameNetwork/LANAPICallbacks.h"
+#include "W3DDevice/GameClient/W3DParticleSys.h"
 
 //-------------------------------------------------------------------------------------------------
 /** Constructor for SDLGameEngine */
@@ -116,6 +121,10 @@ void SDLGameEngine::update( void )
 //-------------------------------------------------------------------------------------------------
 void SDLGameEngine::serviceWindowsOS( void )
 {
+	// Get typed pointers to SDL input devices (if available)
+	SDLKeyboard *sdlKeyboard = dynamic_cast<SDLKeyboard*>(TheKeyboard);
+	SDLMouse *sdlMouse = dynamic_cast<SDLMouse*>(TheMouse);
+
 	SDL_Event event;
 	while (SDL_PollEvent(&event))
 	{
@@ -137,9 +146,31 @@ void SDLGameEngine::serviceWindowsOS( void )
 			}
 			break;
 
-		// TODO: Route keyboard events to TheKeyboard
-		// TODO: Route mouse events to TheMouse
-		// These will be implemented in Phase 5 (Input System)
+		case SDL_KEYDOWN:
+		case SDL_KEYUP:
+			if (sdlKeyboard) {
+				sdlKeyboard->pushKeyEvent(event.key);
+			}
+			break;
+
+		case SDL_MOUSEMOTION:
+			if (sdlMouse) {
+				sdlMouse->pushMouseMotion(event.motion);
+			}
+			break;
+
+		case SDL_MOUSEBUTTONDOWN:
+		case SDL_MOUSEBUTTONUP:
+			if (sdlMouse) {
+				sdlMouse->pushMouseButton(event.button);
+			}
+			break;
+
+		case SDL_MOUSEWHEEL:
+			if (sdlMouse) {
+				sdlMouse->pushMouseWheel(event.wheel);
+			}
+			break;
 
 		default:
 			break;
@@ -164,6 +195,5 @@ AudioManager *SDLGameEngine::createAudioManager( void )
 
 ParticleSystemManager* SDLGameEngine::createParticleSystemManager( void )
 {
-	// TODO: Return particle system manager once rendering is ported (Phase 3)
-	return nullptr;
+	return NEW W3DParticleSystemManager;
 }

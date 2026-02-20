@@ -217,6 +217,10 @@ if(NOT WIN32 AND NOT IS_VS6_BUILD)
     list(APPEND GAMEENGINEDEVICE_SRC
         Include/SDLDevice/Common/SDLGameEngine.h
         Source/SDLDevice/Common/SDLGameEngine.cpp
+        Include/SDLDevice/GameClient/SDLKeyboard.h
+        Source/SDLDevice/GameClient/SDLKeyboard.cpp
+        Include/SDLDevice/GameClient/SDLMouse.h
+        Source/SDLDevice/GameClient/SDLMouse.cpp
     )
 endif()
 

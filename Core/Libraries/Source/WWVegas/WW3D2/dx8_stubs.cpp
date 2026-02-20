@@ -21,10 +21,85 @@
 #include <gl_compat.h>
 #include "gl_render.h"
 
+// ===== S3TC compressed texture format extension constants =====
+#ifndef GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
+#define GL_COMPRESSED_RGBA_S3TC_DXT1_EXT 0x83F1
+#define GL_COMPRESSED_RGBA_S3TC_DXT3_EXT 0x83F2
+#define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT 0x83F3
+#endif
+
 // ===== OpenGL context state =====
 static SDL_GLContext s_glContext = nullptr;
 static SDL_Window* s_sdlWindow = nullptr;
 static GLRenderState s_glState = {};
+
+// ===== GL Texture wrapper =====
+// Wraps a GL texture handle inside the IDirect3DTexture8 interface so that
+// existing WW3D code can hold and refcount it via IDirect3DBaseTexture8*.
+struct GLTexture : public IDirect3DTexture8 {
+	GLuint glTexture;
+	unsigned texWidth;
+	unsigned texHeight;
+	WW3DFormat ww3dFormat;
+	int refCount;
+
+	GLTexture(GLuint tex, unsigned w, unsigned h, WW3DFormat fmt)
+		: glTexture(tex), texWidth(w), texHeight(h), ww3dFormat(fmt), refCount(1) {}
+
+	~GLTexture() override {
+		if (glTexture) glDeleteTextures(1, &glTexture);
+	}
+
+	unsigned long AddRef() override { return ++refCount; }
+	unsigned long Release() override {
+		if (--refCount <= 0) { delete this; return 0; }
+		return refCount;
+	}
+};
+
+// ===== GL Texture format mapping =====
+struct GLTextureFormat {
+	GLenum internalFormat;
+	GLenum format;
+	GLenum type;
+	bool compressed;
+};
+
+static GLTextureFormat GL_GetTextureFormat(WW3DFormat ww3dFmt)
+{
+	switch (ww3dFmt) {
+		case WW3D_FORMAT_A8R8G8B8:
+			return { GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, false };
+		case WW3D_FORMAT_X8R8G8B8:
+			return { GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, false };
+		case WW3D_FORMAT_R8G8B8:
+			return { GL_RGB8, GL_BGR, GL_UNSIGNED_BYTE, false };
+		case WW3D_FORMAT_R5G6B5:
+			return { GL_RGB8, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, false };
+		case WW3D_FORMAT_A1R5G5B5:
+			return { GL_RGB5_A1, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, false };
+		case WW3D_FORMAT_X1R5G5B5:
+			return { GL_RGB5_A1, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, false };
+		case WW3D_FORMAT_A4R4G4B4:
+			return { GL_RGBA4, GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV, false };
+		case WW3D_FORMAT_A8:
+			return { GL_R8, GL_RED, GL_UNSIGNED_BYTE, false };
+		case WW3D_FORMAT_L8:
+			return { GL_R8, GL_RED, GL_UNSIGNED_BYTE, false };
+		case WW3D_FORMAT_A8L8:
+			return { GL_RG8, GL_RG, GL_UNSIGNED_BYTE, false };
+		case WW3D_FORMAT_DXT1:
+			return { GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 0, 0, true };
+		case WW3D_FORMAT_DXT2:
+		case WW3D_FORMAT_DXT3:
+			return { GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, 0, 0, true };
+		case WW3D_FORMAT_DXT4:
+		case WW3D_FORMAT_DXT5:
+			return { GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 0, 0, true };
+		default:
+			return { GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, false };
+	}
+}
 
 // ===== Globals =====
 unsigned number_of_DX8_calls = 0;
@@ -382,13 +457,63 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		GL_ApplyShaderState(render_state.shader);
 	}
 
+	// Bind textures when texture stages change
+	if (render_state_changed & TEXTURES_CHANGED) {
+		for (unsigned stage = 0; stage < 2; ++stage) {
+			if (render_state_changed & (TEXTURE0_CHANGED << stage)) {
+				glActiveTexture(GL_TEXTURE0 + stage);
+				IDirect3DBaseTexture8* baseTex = Textures[stage];
+				GLTexture* glTex = dynamic_cast<GLTexture*>(baseTex);
+				if (glTex && glTex->glTexture) {
+					glBindTexture(GL_TEXTURE_2D, glTex->glTexture);
+					if (stage == 0) {
+						glUniform1i(s_glState.shader.loc_hasTexture, 1);
+					} else if (stage == 1) {
+						glUniform1i(s_glState.shader.loc_hasTexture1, 1);
+					}
+				} else {
+					glBindTexture(GL_TEXTURE_2D, 0);
+					if (stage == 0) {
+						glUniform1i(s_glState.shader.loc_hasTexture, 0);
+					} else if (stage == 1) {
+						glUniform1i(s_glState.shader.loc_hasTexture1, 0);
+					}
+				}
+			}
+		}
+	}
+
 	// Update ambient color uniform
 	float amb[4] = { Ambient_Color.X, Ambient_Color.Y, Ambient_Color.Z, 1.0f };
 	glUniform4fv(s_glState.shader.loc_ambientColor, 1, amb);
 
 	render_state_changed = 0;
 }
-IDirect3DTexture8* DX8Wrapper::_Create_DX8_Texture(unsigned, unsigned, WW3DFormat, MipCountType, D3DPOOL, bool) { return nullptr; }
+IDirect3DTexture8* DX8Wrapper::_Create_DX8_Texture(unsigned w, unsigned h, WW3DFormat fmt, MipCountType mips, D3DPOOL, bool)
+{
+	GLTextureFormat glFmt = GL_GetTextureFormat(fmt);
+	GLuint tex = 0;
+	glGenTextures(1, &tex);
+	if (!tex) return nullptr;
+
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mips ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	if (!glFmt.compressed) {
+		glTexImage2D(GL_TEXTURE_2D, 0, glFmt.internalFormat, w, h, 0, glFmt.format, glFmt.type, nullptr);
+	}
+	// Compressed textures will be uploaded later via glCompressedTexImage2D
+
+	if (mips) {
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+	return new GLTexture(tex, w, h, fmt);
+}
 IDirect3DTexture8* DX8Wrapper::_Create_DX8_Texture(const char*, MipCountType) { return nullptr; }
 IDirect3DTexture8* DX8Wrapper::_Create_DX8_Texture(IDirect3DSurface8*, MipCountType) { return nullptr; }
 IDirect3DTexture8* DX8Wrapper::_Create_DX8_ZTexture(unsigned, unsigned, WW3DZFormat, MipCountType, D3DPOOL) { return nullptr; }
@@ -443,7 +568,7 @@ unsigned DX8Wrapper::Get_Last_Frame_Texture_Stage_State_Changes() { return 0; }
 unsigned DX8Wrapper::Get_Last_Frame_DX8_Calls() { return 0; }
 unsigned DX8Wrapper::Get_Last_Frame_Draw_Calls() { return 0; }
 unsigned long DX8Wrapper::Get_FrameCount(void) { return FrameCount; }
-WW3DFormat DX8Wrapper::getBackBufferFormat(void) { return WW3D_FORMAT_UNKNOWN; }
+WW3DFormat DX8Wrapper::getBackBufferFormat(void) { return WW3D_FORMAT_A8R8G8B8; }
 bool DX8Wrapper::Reset_Device(bool) { return true; }
 void DX8Wrapper::Compute_Caps(WW3DFormat) {}
 void DX8Wrapper::Set_Swap_Interval(int interval)

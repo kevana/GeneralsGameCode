@@ -119,6 +119,17 @@
   - GeneralsMD: FFmpeg path used when available, nullptr fallback otherwise
   - Generals: nullptr returned on non-Windows (no video playback yet)
 
+### Compilation Fixes
+- [x] **PreRTS.h** precompiled headers (Generals + GeneralsMD)
+  - Gated all Windows-only system headers (`atlbase.h`, `windows.h`, `mmsystem.h`,
+    `shlobj.h`, `vfw.h`, `wininet.h`, etc.) behind `#ifdef _WIN32`
+  - Non-Windows path includes `<Utility/compat.h>` for portable type definitions
+  - Cross-platform standard headers kept outside guard
+  - Unblocks ~1000 source files from compilation on macOS
+- [x] **WorldHeightMap.cpp** - Gated `#include "windows.h"` behind `_WIN32`
+- [x] **framgrab.h/cpp** - Entire AVI capture wrapped behind `#ifdef _WIN32`
+- [x] **WWAudio Threads.h/cpp** - Win32 threading code wrapped behind `#ifdef _WIN32`
+
 ### Phase 7–8: Packaging, Testing
 - [ ] Not yet started
 

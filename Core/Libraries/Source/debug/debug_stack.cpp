@@ -27,6 +27,8 @@
 // Stack walker
 //////////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
+
 #include "debug.h"
 #include "debug_stack.h"
 #include <windows.h>
@@ -403,3 +405,5 @@ int DebugStackwalk::StackWalk(Signature &sig, struct _CONTEXT *ctx)
 
 	return sig.m_numAddr;
 }
+
+#endif // _WIN32

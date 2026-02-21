@@ -18,6 +18,7 @@
 
 #include "DbgHelpLoader.h"
 
+#ifdef _WIN32
 
 DbgHelpLoader* DbgHelpLoader::Inst = nullptr;
 CriticalSectionClass DbgHelpLoader::CriticalSection;
@@ -360,3 +361,5 @@ BOOL DbgHelpLoader::miniDumpWriteDump(
 	return FALSE;
 }
 #endif
+
+#endif // _WIN32

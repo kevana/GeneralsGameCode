@@ -36,8 +36,10 @@
 
 
 #include "verchk.h"
+#ifdef _WIN32
 #include <windows.h>
 #include <winnt.h>
+#endif
 #include "RAWFILE.h"
 #include "ffactory.h"
 

@@ -36,7 +36,9 @@
 
 #pragma once
 
+#ifdef _WIN32
 #include <windows.h>
+#endif
 
 // Obtain version information from the specified file.
 bool GetVersionInfo(char* filename, VS_FIXEDFILEINFO* fileInfo);

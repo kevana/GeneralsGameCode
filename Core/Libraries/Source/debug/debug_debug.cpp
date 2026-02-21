@@ -27,6 +27,8 @@
 // Debug class implementation
 //////////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
+
 #include "debug.h"
 #include "internal.h"
 #include "internal_except.h"
@@ -1683,3 +1685,5 @@ void __cdecl _heap_abort(void)
 {
   DCRASH_RELEASE("Fatal heap error.");
 }
+
+#endif // _WIN32

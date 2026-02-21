@@ -34,7 +34,11 @@
 #include "internal_highlevel.h"
 #include "internal_cmd.h"
 #include "internal_result.h"
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <cstdio>
+#endif
 
 #if !(defined(_MSC_VER) && _MSC_VER < 1300)
 #include <atomic>
@@ -46,7 +50,9 @@ class ProfileFastCS
   ProfileFastCS(const ProfileFastCS&) CPP_11(= delete);
   ProfileFastCS& operator=(const ProfileFastCS&) CPP_11(= delete);
 
+#if defined(_MSC_VER) && _MSC_VER < 1300
 	static HANDLE testEvent;
+#endif
 
 #if defined(_MSC_VER) && _MSC_VER < 1300
 	volatile unsigned m_Flag;

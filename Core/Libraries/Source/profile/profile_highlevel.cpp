@@ -196,7 +196,7 @@ void ProfileId::Maximum(double max)
 const char *ProfileId::AsString(double v) const
 {
   char help1[10],help[40];
-  wsprintf(help1,"%%%i.lf",m_precision);
+  sprintf(help1,"%%%i.lf",m_precision);
 
   double mul=1.0;
   int k;

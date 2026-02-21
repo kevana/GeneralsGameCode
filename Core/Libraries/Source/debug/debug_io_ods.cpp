@@ -26,6 +26,8 @@
 //
 // Debug I/O class ods (OutputDebugString, for use in debugger)
 //////////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
+
 #include "debug.h"
 #include "internal.h"
 #include "internal_io.h"
@@ -47,3 +49,5 @@ void DebugIOOds::Delete(void)
   this->~DebugIOOds();
   DebugFreeMemory(this);
 }
+
+#endif // _WIN32

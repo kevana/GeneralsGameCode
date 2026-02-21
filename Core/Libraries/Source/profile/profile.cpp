@@ -30,7 +30,14 @@
 #include "profile.h"
 #include "internal.h"
 #include <new>
+#ifdef _WIN32
 #include "mmsystem.h"
+#else
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
+#include <chrono>
+#endif
 
 // yuk, I'm doing this so weird because the destructor
 // of cmd must never be called...
@@ -41,6 +48,7 @@ static ProfileCmdInterface &cmd=*(ProfileCmdInterface *)new
 // be linked in as well...
 static bool __RegisterDebugCmdGroup_Profile=Debug::AddCommands("profile",&cmd);
 
+#ifdef _WIN32
 void *ProfileAllocMemory(unsigned numBytes)
 {
   HGLOBAL h=GlobalAlloc(GMEM_FIXED,numBytes);
@@ -51,23 +59,16 @@ void *ProfileAllocMemory(unsigned numBytes)
 
 void *ProfileReAllocMemory(void *oldPtr, unsigned newSize)
 {
-  // Windows doesn't like ReAlloc with null handle/ptr...
   if (!oldPtr)
     return newSize?ProfileAllocMemory(newSize):nullptr;
-
-  // Shrinking to 0 size is basically freeing memory
   if (!newSize)
   {
     GlobalFree((HGLOBAL)oldPtr);
     return nullptr;
   }
-
-  // now try GlobalReAlloc first
   HGLOBAL h=GlobalReAlloc((HGLOBAL)oldPtr,newSize,0);
   if (!h)
   {
-    // this failed (Windows doesn't like ReAlloc'ing larger
-    // fixed memory blocks) - go with Alloc/Free instead
     h=GlobalAlloc(GMEM_FIXED,newSize);
     if (!h)
       DCRASH_RELEASE("Debug mem realloc failed");
@@ -75,7 +76,6 @@ void *ProfileReAllocMemory(void *oldPtr, unsigned newSize)
     memcpy((void *)h,oldPtr,oldSize<newSize?oldSize:newSize);
     GlobalFree((HGLOBAL)oldPtr);
   }
-
   return (void *)h;
 }
 
@@ -84,6 +84,35 @@ void ProfileFreeMemory(void *ptr)
   if (ptr)
     GlobalFree((HGLOBAL)ptr);
 }
+#else // !_WIN32
+void *ProfileAllocMemory(unsigned numBytes)
+{
+  void *p = malloc(numBytes);
+  if (!p)
+    DCRASH_RELEASE("Debug mem alloc failed");
+  return p;
+}
+
+void *ProfileReAllocMemory(void *oldPtr, unsigned newSize)
+{
+  if (!oldPtr)
+    return newSize ? ProfileAllocMemory(newSize) : nullptr;
+  if (!newSize)
+  {
+    free(oldPtr);
+    return nullptr;
+  }
+  void *p = realloc(oldPtr, newSize);
+  if (!p)
+    DCRASH_RELEASE("Debug mem realloc failed");
+  return p;
+}
+
+void ProfileFreeMemory(void *ptr)
+{
+  free(ptr);
+}
+#endif // _WIN32
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -97,18 +126,15 @@ static _int64 GetClockCyclesFast(void)
                               "file_dot",
                               "[ file [ frame_name [ fold_threshold ] ] ]");
 
-  // this must not take a very huge CPU hit...
-
+#ifdef _WIN32
   // measure clock cycles 3 times for 20 msec each
   // then take the 2 counts that are closest, average
   _int64 n[3];
   for (int k=0;k<3;k++)
   {
-    // wait for end of current tick
     unsigned timeEnd=timeGetTime()+2;
     while (timeGetTime()<timeEnd);
 
-    // get cycles
     _int64 start,startQPC,endQPC;
     QueryPerformanceCounter((LARGE_INTEGER *)&startQPC);
     ProfileGetTime(start);
@@ -117,7 +143,6 @@ static _int64 GetClockCyclesFast(void)
     ProfileGetTime(n[k]);
     n[k]-=start;
 
-    // convert to 1 second
     if (QueryPerformanceCounter((LARGE_INTEGER *)&endQPC))
     {
       _int64 freq;
@@ -130,24 +155,39 @@ static _int64 GetClockCyclesFast(void)
     }
   }
 
-  // find two closest values
   _int64 d01=n[1]-n[0],d02=n[2]-n[0],d12=n[2]-n[1];
   if (d01<0) d01=-d01;
   if (d02<0) d02=-d02;
   if (d12<0) d12=-d12;
   _int64 avg;
   if (d01<d02)
-  {
     avg=d01<d12?n[0]+n[1]:n[1]+n[2];
-  }
   else
-  {
     avg=d02<d12?n[0]+n[2]:n[1]+n[2];
-  }
 
-  // return result
-  // (rounded to the next MHz)
   return ((avg/2+500000)/1000000)*1000000;
+#else
+  // On non-Windows, use std::chrono to estimate CPU frequency
+  using clock = std::chrono::high_resolution_clock;
+  auto start = clock::now();
+  _int64 tscStart;
+  ProfileGetTime(tscStart);
+
+  // Busy-wait for ~20ms
+  while (std::chrono::duration_cast<std::chrono::milliseconds>(clock::now() - start).count() < 20)
+    ;
+
+  _int64 tscEnd;
+  ProfileGetTime(tscEnd);
+  auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - start).count();
+
+  if (elapsed > 0)
+  {
+    _int64 cyclesPerSec = (tscEnd - tscStart) * 1000000000LL / elapsed;
+    return ((cyclesPerSec + 500000) / 1000000) * 1000000;
+  }
+  return 1000000000LL; // 1 GHz fallback
+#endif
 }
 
 unsigned Profile::m_rec;
@@ -296,7 +336,7 @@ void Profile::StopRange(const char *range)
       m_frameNames[k].lastGlobalIndex=m_rec;
       m_recNames=(char **)ProfileReAllocMemory(m_recNames,(m_rec+1)*sizeof(char *));
       m_recNames[m_rec]=(char *)ProfileAllocMemory(strlen(range)+1+6);
-      wsprintf(m_recNames[m_rec++],"%s:%i",range,++m_frameNames[k].frames);
+      sprintf(m_recNames[m_rec++],"%s:%i",range,++m_frameNames[k].frames);
     }
     else
       atIndex=m_frameNames[k].lastGlobalIndex;

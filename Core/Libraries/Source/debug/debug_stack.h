@@ -140,21 +140,13 @@ public:
   */
   static void *GetDbghelpHandle(void);
 
-  /** \internal
-    \brief Checks if dbghelp.dll version is old.
-
-    \return true if old version, false if not
-  */
   static bool IsOldDbghelp(void);
 
-  /**
-    \brief Walks the stack from the given address.
-
-    \param sig stack signature to return
-    \param ctx processor context, if nullptr then use current address
-    \return number of addresses found
-  */
+#ifdef _WIN32
   static int StackWalk(Signature &sig, struct _CONTEXT *ctx=0);
+#else
+  static int StackWalk(Signature &sig, void *ctx=0);
+#endif
 };
 
 /**

@@ -20,9 +20,16 @@
 #include "DownloadDebug.h"
 #include "Download.h"
 #include "stringex.h"
+#ifdef _WIN32
 #include <mmsystem.h>
+#endif
 #include <assert.h>
+#ifdef _WIN32
 #include <direct.h>
+#else
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 #include <stdlib.h>
 #include <sys/stat.h>
 

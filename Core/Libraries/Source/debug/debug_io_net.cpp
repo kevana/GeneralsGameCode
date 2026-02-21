@@ -27,6 +27,8 @@
 // Debug I/O class net (Network destination via named pipe)
 //////////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
+
 #include "debug.h"
 #include "internal.h"
 #include "internal_io.h"
@@ -130,3 +132,5 @@ void DebugIONet::Delete(void)
   this->~DebugIONet();
   DebugFreeMemory(this);
 }
+
+#endif // _WIN32

@@ -36,6 +36,9 @@
 
 
 #include "rcfile.h"
+
+#ifdef _WIN32
+
 #include <stdlib.h>
 
 const char * RESOURCE_FILE_TYPE_NAME = "File";
@@ -125,3 +128,5 @@ int ResourceFileClass::Size(void)
 void ResourceFileClass::Error(int /*error*/, int /*canretry*/, char const * /*filename*/)
 {
 }
+
+#endif // _WIN32

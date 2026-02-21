@@ -28,18 +28,16 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include "debug.h"
+
+#ifdef _WIN32
 #include <windows.h>
 
 void DebugInternalAssert(const char *file, int line, const char *expr)
 {
-  // dangerous as well but since this function is used in this
-  // module only we know how long stuff can get
   char buf[512];
   wsprintf(buf,"File %s, line %i:\n%s",file,line,expr);
   MessageBox(nullptr,buf,"Internal assert failed",
                         MB_OK|MB_ICONSTOP|MB_TASKMODAL|MB_SETFOREGROUND);
-
-  // stop right now!
   TerminateProcess(GetCurrentProcess(),666);
 }
 
@@ -53,23 +51,16 @@ void *DebugAllocMemory(unsigned numBytes)
 
 void *DebugReAllocMemory(void *oldPtr, unsigned newSize)
 {
-  // Windows doesn't like ReAlloc with null handle/ptr...
   if (!oldPtr)
     return newSize?DebugAllocMemory(newSize):nullptr;
-
-  // Shrinking to 0 size is basically freeing memory
   if (!newSize)
   {
     GlobalFree((HGLOBAL)oldPtr);
     return nullptr;
   }
-
-  // now try GlobalReAlloc first
   HGLOBAL h=GlobalReAlloc((HGLOBAL)oldPtr,newSize,0);
   if (!h)
   {
-    // this failed (Windows doesn't like ReAlloc'ing larger
-    // fixed memory blocks) - go with Alloc/Free instead
     h=GlobalAlloc(GMEM_FIXED,newSize);
     if (!h)
       DCRASH_RELEASE("Debug mem realloc failed");
@@ -77,7 +68,6 @@ void *DebugReAllocMemory(void *oldPtr, unsigned newSize)
     memcpy((void *)h,oldPtr,oldSize<newSize?oldSize:newSize);
     GlobalFree((HGLOBAL)oldPtr);
   }
-
   return (void *)h;
 }
 
@@ -86,3 +76,45 @@ void DebugFreeMemory(void *ptr)
   if (ptr)
     GlobalFree((HGLOBAL)ptr);
 }
+
+#else // !_WIN32
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+void DebugInternalAssert(const char *file, int line, const char *expr)
+{
+  fprintf(stderr, "Internal assert failed - File %s, line %i:\n%s\n", file, line, expr);
+  abort();
+}
+
+void *DebugAllocMemory(unsigned numBytes)
+{
+  void *p = malloc(numBytes);
+  if (!p)
+    DCRASH_RELEASE("Debug mem alloc failed");
+  return p;
+}
+
+void *DebugReAllocMemory(void *oldPtr, unsigned newSize)
+{
+  if (!oldPtr)
+    return newSize ? DebugAllocMemory(newSize) : nullptr;
+  if (!newSize)
+  {
+    free(oldPtr);
+    return nullptr;
+  }
+  void *p = realloc(oldPtr, newSize);
+  if (!p)
+    DCRASH_RELEASE("Debug mem realloc failed");
+  return p;
+}
+
+void DebugFreeMemory(void *ptr)
+{
+  free(ptr);
+}
+
+#endif // _WIN32

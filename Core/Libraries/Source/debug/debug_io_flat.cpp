@@ -27,6 +27,8 @@
 // Debug I/O class flat (flat or split log file)
 //////////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
+
 #include "debug.h"
 #include "debug_io.h"
 #include "internal.h"
@@ -547,3 +549,5 @@ void DebugIOFlat::Delete(void)
   this->~DebugIOFlat();
   DebugFreeMemory(this);
 }
+
+#endif // _WIN32

@@ -579,7 +579,7 @@ const char *ProfileFuncLevel::Id::GetSource(void) const
                                          helpFile,sizeof(helpFile),&func->funcLine,nullptr);
 
     char help[300];
-    wsprintf(help,ofsFunc?"%s+0x%x":"%s",helpFunc,ofsFunc);
+    sprintf(help,ofsFunc?"%s+0x%x":"%s",helpFunc,ofsFunc);
     func->funcSource=(char *)ProfileAllocMemory(strlen(helpFile)+1);
     strcpy(func->funcSource,helpFile);
     func->funcName=(char *)ProfileAllocMemory(strlen(help)+1);
@@ -792,4 +792,6 @@ ProfileFuncLevel::ProfileFuncLevel(void)
 #endif // !defined HAS_PROFILE
 
 ProfileFuncLevel ProfileFuncLevel::Instance;
+#if defined(_MSC_VER) && _MSC_VER < 1300
 HANDLE ProfileFastCS::testEvent=::CreateEvent(nullptr,FALSE,FALSE,"");
+#endif

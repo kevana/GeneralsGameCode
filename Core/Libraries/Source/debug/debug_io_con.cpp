@@ -27,6 +27,8 @@
 // Debug I/O class con (console window)
 //////////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
+
 #include "debug.h"
 #include "internal.h"
 #include "internal_io.h"
@@ -231,3 +233,5 @@ void DebugIOCon::Delete(void)
   this->~DebugIOCon();
   DebugFreeMemory(this);
 }
+
+#endif // _WIN32

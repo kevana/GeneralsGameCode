@@ -21,6 +21,18 @@
 #include <cstddef> // std::size_t, std::ptrdiff_t
 #include <new> // std::bad_alloc
 
+#ifndef _WIN32
+#include <cstdlib>
+#ifndef GMEM_FIXED
+#define GMEM_FIXED 0
+#endif
+#ifndef GlobalAlloc
+#define GlobalAlloc(flags, size) malloc(size)
+#endif
+#ifndef GlobalFree
+#define GlobalFree(p) free(p)
+#endif
+#endif
 
 namespace stl
 {

@@ -67,6 +67,24 @@ DECLARE_PERF_TIMER(MemoryPoolInitFilling)
 
 
 // ----------------------------------------------------------------------------
+// Non-Windows GlobalAlloc/GlobalFree/GlobalSize compatibility
+// ----------------------------------------------------------------------------
+#ifndef _WIN32
+#include <cstdlib>
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#define _PortableAllocSize(p) malloc_size(p)
+#else
+#include <malloc.h>
+#define _PortableAllocSize(p) malloc_usable_size(p)
+#endif
+#define GMEM_FIXED 0
+#define GlobalAlloc(flags, size) malloc(size)
+#define GlobalFree(p) free(p)
+#define GlobalSize(p) _PortableAllocSize(p)
+#endif
+
+// ----------------------------------------------------------------------------
 // DEFINES
 // ----------------------------------------------------------------------------
 

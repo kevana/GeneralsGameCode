@@ -21,6 +21,10 @@ set(DEBUG_SRC
     "internal.h"
 )
 
+if(NOT WIN32)
+    list(APPEND DEBUG_SRC "debug_posix_stubs.cpp")
+endif()
+
 add_library(core_debug STATIC)
 
 target_sources(core_debug PRIVATE ${DEBUG_SRC})
@@ -35,7 +39,7 @@ target_precompile_headers(core_debug PRIVATE
     "internal.h"
     "internal_except.h"
     "internal_io.h"
-    <windows.h>
+    $<$<PLATFORM_ID:Windows>:<windows.h>>
 )
 
 target_link_libraries(core_debug PRIVATE

@@ -41,8 +41,10 @@
 
 // Includes.
 #include "always.h"
+#ifdef _WIN32
 #include <windows.h>
 #include <winbase.h>
+#endif
 
 
 // Class declerations.

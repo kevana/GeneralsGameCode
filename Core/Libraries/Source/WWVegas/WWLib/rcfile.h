@@ -38,6 +38,9 @@
 
 #include "always.h"
 #include "WWFILE.h"
+
+#ifdef _WIN32
+
 #include "win.h"
 
 /*
@@ -86,3 +89,5 @@ class ResourceFileClass : public FileClass
 		unsigned char *	EndOfFile;
 
 };
+
+#endif // _WIN32

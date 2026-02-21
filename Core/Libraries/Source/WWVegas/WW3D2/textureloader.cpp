@@ -829,8 +829,12 @@ void TextureLoader::Flush_Pending_Load_Tasks(void)
 
 
 // Nework update macro for texture loader.
+#ifdef _MSC_VER
 #pragma warning(disable:4201) // warning C4201: nonstandard extension used : nameless struct/union
+#endif
+#ifdef _WIN32
 #include <mmsystem.h>
+#endif
 #define UPDATE_NETWORK 											\
 	if (network_callback) {                            \
 		unsigned long time2 = timeGetTime();            \

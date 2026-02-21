@@ -20,6 +20,8 @@
 
 #include "always.h"
 
+#ifdef _WIN32
+
 #include <win.h>
 #include <imagehlp.h> // Must be included after Windows.h
 #include <set>
@@ -214,3 +216,18 @@ private:
 	bool m_failed;
 	bool m_loadedFromSystem;
 };
+
+#else // !_WIN32
+
+// Non-Windows stub - DbgHelp is Windows-only debug symbol support
+class DbgHelpLoader
+{
+public:
+	static bool isLoaded() { return false; }
+	static bool isLoadedFromSystem() { return false; }
+	static bool isFailed() { return true; }
+	static bool load() { return false; }
+	static void unload() {}
+};
+
+#endif // _WIN32

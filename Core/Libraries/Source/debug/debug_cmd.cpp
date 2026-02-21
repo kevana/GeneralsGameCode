@@ -26,6 +26,8 @@
 //
 // Debug command group 'debug'
 //////////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
+
 #include "debug.h"
 #include "debug_cmd.h"
 #include "internal.h"
@@ -408,3 +410,5 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
   // unknown command
   return false;
 }
+
+#endif // _WIN32

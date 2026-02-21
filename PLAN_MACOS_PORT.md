@@ -129,6 +129,30 @@
 - [x] **WorldHeightMap.cpp** - Gated `#include "windows.h"` behind `_WIN32`
 - [x] **framgrab.h/cpp** - Entire AVI capture wrapped behind `#ifdef _WIN32`
 - [x] **WWAudio Threads.h/cpp** - Win32 threading code wrapped behind `#ifdef _WIN32`
+- [x] **GameMemory.cpp** - Replaced `GlobalAlloc`/`GlobalFree`/`GlobalSize` with
+  `malloc`/`free`/`malloc_size` (macOS) or `malloc_usable_size` (Linux) on non-Windows
+- [x] **SystemAllocator.h** - Added `GlobalAlloc`/`GlobalFree` compat macros for non-Windows
+- [x] **Debug library** (39 files changed)
+  - All Windows-specific cpp files (`debug_debug.cpp`, `debug_cmd.cpp`, `debug_except.cpp`,
+    `debug_io_con/flat/net/ods.cpp`, `debug_stack.cpp`) wrapped behind `#ifdef _WIN32`
+  - Created `debug_posix_stubs.cpp` with minimal Debug class (stderr-based output,
+    `CrashBegin`/`CrashDone` for `DCRASH_RELEASE`, stream operators, static init)
+  - Headers (`internal_io.h`, `internal_except.h`, `debug_stack.h`) gated for non-Windows
+  - CMake PCH: `<windows.h>` gated behind `$<$<PLATFORM_ID:Windows>:...>`
+- [x] **Profile library**
+  - `profile.cpp`: Portable `ProfileAllocMemory`/`ProfileReAllocMemory`/`ProfileFreeMemory`
+    using `malloc`/`realloc`/`free` on non-Windows; `GetClockCyclesFast` using `std::chrono`
+  - `internal.h`/`internal_funclevel.h`: `<windows.h>` gated; `HANDLE testEvent` gated
+  - `wsprintf` → `sprintf` in `profile_funclevel.cpp`, `profile_highlevel.cpp`
+  - CMake PCH: `<windows.h>` gated behind `$<$<PLATFORM_ID:Windows>:...>`
+- [x] **DbgHelpLoader.h/cpp** - Wrapped behind `_WIN32` with non-Windows stub class
+- [x] **rcfile.h/cpp** - Wrapped behind `_WIN32` (Windows resource file API)
+- [x] **mmsys.h** - Guard `mmsystem.h` include behind `_WIN32`
+- [x] **textureloader.cpp** - Guard `mmsystem.h` include behind `_WIN32`
+- [x] **Download.cpp** - Guard `mmsystem.h` and `direct.h` behind `_WIN32`
+- [x] **9 WWVegas files** - Gated `<windows.h>` in WW3D2 (agg_def.cpp,
+  dx8webbrowser.h, texturethumbnail.cpp), WWAudio, WWSaveLoad, WWDownload
+- [x] **WebBrowser.h** - Gate `atlbase.h` and `windows.h` behind `_WIN32`
 
 ### Phase 7–8: Packaging, Testing
 - [ ] Not yet started

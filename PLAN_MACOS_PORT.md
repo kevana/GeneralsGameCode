@@ -153,6 +153,12 @@
 - [x] **9 WWVegas files** - Gated `<windows.h>` in WW3D2 (agg_def.cpp,
   dx8webbrowser.h, texturethumbnail.cpp), WWAudio, WWSaveLoad, WWDownload
 - [x] **WebBrowser.h** - Gate `atlbase.h` and `windows.h` behind `_WIN32`
+- [x] **Debug.cpp** - Gate `HWND`, `MessageBox`, `SetWindowPos` behind `_WIN32` with stderr fallback
+- [x] **wwmemlog.cpp** - Use `thread_local` instead of `__declspec(thread)` on non-MSVC
+- [x] **render2dsentence.cpp/h** - Gate GDI font rendering (`Create_GDI_Font`, `Free_GDI_Font`,
+  `Store_GDI_Char`) behind `_WIN32` with non-Windows stubs; use `void*` for GDI handles
+- [x] **StagingRoomGameInfo.cpp** - Gate SNMP-based local address detection behind `_WIN32`
+- [x] **PingThread.cpp** - Gate ICMP ping via `LoadLibrary`/`GetProcAddress` behind `_WIN32`
 
 ### Phase 7–8: Packaging, Testing
 - [ ] Not yet started

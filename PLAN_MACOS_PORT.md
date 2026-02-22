@@ -163,7 +163,11 @@
   `GetProcAddress`/`FreeLibrary` compat stubs for non-Windows (debug/particle editor DLLs)
 - [x] **WWCOMUtil.cpp/h** - Wrap entire COM utility implementation behind `_WIN32`
 - [x] **dx8webbrowser.h** - Disable `ENABLE_EMBEDDED_BROWSER` on non-Windows
-- [x] **FTP.cpp** - Gate `process.h`, `io.h`, `direct.h` behind `_WIN32`
+- [x] **FTP.cpp** - Gate `process.h`, `io.h`, `direct.h` behind `_WIN32`; add
+  `OutputDebugString` compat macro
+- [x] **GameMemoryInit.cpp** - Gate `GetModuleFileName` behind `_WIN32` with relative path fallback
+- [x] **Debug.cpp** - Gate `GetModuleFileName` and `OutputDebugString` behind `_WIN32`
+- [x] **ini.cpp** - Gate `OutputDebugString` behind `_WIN32` with `fprintf(stderr)` fallback
 
 ### Phase 7–8: Packaging, Testing
 - [ ] Not yet started

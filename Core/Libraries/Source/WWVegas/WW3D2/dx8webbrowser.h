@@ -40,7 +40,11 @@
 // ***********************************
 // Set this to 0 to remove all embedded browser code.
 //
+#ifdef _WIN32
 #define ENABLE_EMBEDDED_BROWSER		1
+#else
+#define ENABLE_EMBEDDED_BROWSER		0
+#endif
 //
 // ***********************************
 

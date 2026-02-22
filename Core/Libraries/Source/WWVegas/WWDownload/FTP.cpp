@@ -26,14 +26,16 @@
 #include <sys/types.h>
 #include <sys/timeb.h>
 #include <stdlib.h>
+#ifdef _WIN32
 #include <process.h>
-#include <sys/stat.h>
 #include <io.h>
+#include <direct.h>
+#endif
+#include <sys/stat.h>
 #include <time.h>
 #include "assert.h"
 #include "ftp.h"
 #include <time.h>
-#include <direct.h>
 #include <errno.h>
 #include <WWCommon.h>
 //#include "wlib/wstring.h"

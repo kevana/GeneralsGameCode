@@ -57,6 +57,15 @@
 #include "GameLogic/SidesList.h"
 
 
+// DLL loading compatibility for non-Windows platforms
+#ifndef _WIN32
+typedef void* HMODULE;
+typedef void (*FARPROC)();
+inline HMODULE LoadLibrary(const char*) { return nullptr; }
+inline FARPROC GetProcAddress(HMODULE, const char*) { return nullptr; }
+inline void FreeLibrary(HMODULE) {}
+#endif
+
 // These are for debugger window
 static int st_LastCurrentFrame;
 static int st_CurrentFrame;

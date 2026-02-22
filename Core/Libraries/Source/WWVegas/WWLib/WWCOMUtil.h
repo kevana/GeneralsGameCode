@@ -36,6 +36,8 @@
 
 #pragma once
 
+#ifdef _WIN32
+
 #include <oaidl.h>
 
 //! Invoke PropertyGet on IDispatch interface.
@@ -55,3 +57,5 @@ bool RegisterCOMServer(const char* dllName);
 
 //! Unregister COM in-process DLL server
 bool UnregisterCOMServer(const char* dllName);
+
+#endif // _WIN32

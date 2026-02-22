@@ -67,6 +67,7 @@ GameSpyGameSlot::GameSpyGameSlot()
 }
 
 // Helper Functions ----------------------------------------
+#ifdef _WIN32
 /*
 ** Function definitions for the MIB-II entry points.
 */
@@ -432,6 +433,13 @@ Bool GetLocalChatConnectionAddress(AsciiString serverName, UnsignedShort serverP
 	FreeLibrary(mib_ii_dll);
 	return(found);
 }
+#else // !_WIN32
+Bool GetLocalChatConnectionAddress(AsciiString serverName, UnsignedShort serverPort, UnsignedInt& localIP)
+{
+	// SNMP-based local address detection is Windows-only
+	return false;
+}
+#endif // _WIN32
 
 // GameSpyGameSlot ----------------------------------------
 

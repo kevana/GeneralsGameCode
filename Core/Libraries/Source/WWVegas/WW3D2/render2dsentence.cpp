@@ -1339,6 +1339,7 @@ FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, i
 //	Store_GDI_Char
 //
 ////////////////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
 const FontCharsClassCharDataStruct *
 FontCharsClass::Store_GDI_Char (WCHAR ch)
 {
@@ -1460,6 +1461,27 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	//
 	return char_data;
 }
+#else // !_WIN32
+const FontCharsClassCharDataStruct *
+FontCharsClass::Store_GDI_Char (WCHAR ch)
+{
+	// Non-Windows stub: GDI font rendering not available
+	// Return a zero-width character entry
+	FontCharsClassCharDataStruct *char_data = W3DNEW FontCharsClassCharDataStruct;
+	char_data->Value = ch;
+	char_data->Width = 0;
+	char_data->Buffer = nullptr;
+
+	if ( ch < 256 ) {
+		ASCIICharArray[ch] = char_data;
+	} else {
+		Grow_Unicode_Array( ch );
+		UnicodeCharArray[ch - FirstUnicodeChar] = char_data;
+	}
+
+	return char_data;
+}
+#endif // _WIN32
 
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1503,6 +1525,7 @@ FontCharsClass::Update_Current_Buffer (int char_width)
 //	Create_GDI_Font
 //
 ////////////////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
 bool
 FontCharsClass::Create_GDI_Font (const char *font_name)
 {
@@ -1600,6 +1623,26 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 
 	return GDIFont != nullptr && GDIBitmap != nullptr;
 }
+#else // !_WIN32
+bool
+FontCharsClass::Create_GDI_Font (const char *font_name)
+{
+	// Non-Windows stub: GDI font creation not available
+	const int dotsPerInch = 96;
+	int font_height = (PointSize * dotsPerInch + 36) / 72;
+	CharHeight = font_height;
+	CharAscent = font_height * 3 / 4;
+	CharOverhang = 0;
+	PixelOverlap = font_height / 8;
+	if (PixelOverlap < 0) PixelOverlap = 0;
+	if (PixelOverlap > 4) PixelOverlap = 4;
+	GDIFont = nullptr;
+	GDIBitmap = nullptr;
+	GDIBitmapBits = nullptr;
+	MemDC = nullptr;
+	return false;
+}
+#endif // _WIN32
 
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1607,6 +1650,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 //	Free_GDI_Font
 //
 ////////////////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
 void
 FontCharsClass::Free_GDI_Font (void)
 {
@@ -1640,6 +1684,16 @@ FontCharsClass::Free_GDI_Font (void)
 
 	return ;
 }
+#else // !_WIN32
+void
+FontCharsClass::Free_GDI_Font (void)
+{
+	GDIFont = nullptr;
+	GDIBitmap = nullptr;
+	GDIBitmapBits = nullptr;
+	MemDC = nullptr;
+}
+#endif // _WIN32
 
 
 ////////////////////////////////////////////////////////////////////////////////////

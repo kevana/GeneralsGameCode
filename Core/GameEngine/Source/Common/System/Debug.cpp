@@ -76,7 +76,9 @@
 
 // Horrible reference, but we really, really need to know if we are windowed.
 extern bool DX8Wrapper_IsWindowed;
+#ifdef _WIN32
 extern HWND ApplicationHWnd;
+#endif
 
 extern const char *gAppPrefix; /// So WB can have a different log file name.
 
@@ -165,18 +167,24 @@ inline Bool ignoringAsserts()
 }
 
 // ----------------------------------------------------------------------------
+#ifdef _WIN32
 inline HWND getThreadHWND()
 {
 	return (theMainThreadID == GetCurrentThreadId())?ApplicationHWnd:nullptr;
 }
-
-// ----------------------------------------------------------------------------
 
 int MessageBoxWrapper( LPCSTR lpText, LPCSTR lpCaption, UINT uType )
 {
 	HWND threadHWND = getThreadHWND();
 	return ::MessageBox(threadHWND, lpText, lpCaption, uType);
 }
+#else
+int MessageBoxWrapper( const char* lpText, const char* lpCaption, unsigned int uType )
+{
+	fprintf(stderr, "%s: %s\n", lpCaption ? lpCaption : "Message", lpText ? lpText : "");
+	return 0;
+}
+#endif
 
 // ----------------------------------------------------------------------------
 // getCurrentTimeString
@@ -859,9 +867,13 @@ void ReleaseCrashLocalized(const AsciiString& p, const AsciiString& m)
 		AsciiString promptA, mesgA;
 		promptA.translate(prompt);
 		mesgA.translate(mesg);
+#ifdef _WIN32
 		//Make sure main window is not TOP_MOST
 		::SetWindowPos(ApplicationHWnd, HWND_NOTOPMOST, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
 		::MessageBoxA(nullptr, mesgA.str(), promptA.str(), MB_OK|MB_TASKMODAL|MB_ICONERROR);
+#else
+		fprintf(stderr, "CRASH: %s: %s\n", promptA.str(), mesgA.str());
+#endif
 	}
 
 	char prevbuf[ _MAX_PATH ];

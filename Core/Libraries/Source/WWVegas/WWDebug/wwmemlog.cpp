@@ -650,7 +650,11 @@ void * WWMemoryLogClass::Allocate_Memory(size_t size)
 	return ALLOC_MEMORY(size);
 #else
 
+#ifdef _MSC_VER
 	__declspec( thread ) static bool reentrancy_test = false;
+#else
+	static thread_local bool reentrancy_test = false;
+#endif
 	MemLogMutexLockClass lock;
 
 	if (reentrancy_test) {

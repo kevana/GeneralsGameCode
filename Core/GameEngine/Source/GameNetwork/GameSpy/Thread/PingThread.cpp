@@ -335,6 +335,7 @@ void PingThreadClass::Thread_Function()
 //-------------------------------------------------------------------------
 //-------------------------------------------------------------------------
 
+#ifdef _WIN32
 HANDLE WINAPI IcmpCreateFile(VOID); /* INVALID_HANDLE_VALUE on error */
 BOOL WINAPI IcmpCloseHandle(HANDLE IcmpHandle); /* FALSE on error */
 
@@ -570,6 +571,13 @@ cleanup:
 
    return pingTime;
 }
+#else // !_WIN32
+Int PingThreadClass::doPing(UnsignedInt IP, Int timeout)
+{
+	// ICMP ping via LoadLibrary is Windows-only
+	return -1;
+}
+#endif // _WIN32
 
 
 //-------------------------------------------------------------------------

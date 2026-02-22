@@ -260,8 +260,12 @@ static void doLogOutput(const char *buffer, const char *endline)
 	// log message to dev studio output window
 	if (theDebugFlags & DEBUG_FLAG_LOG_TO_CONSOLE)
 	{
+#ifdef _WIN32
 		::OutputDebugString(buffer);
 		::OutputDebugString(endline);
+#else
+		fprintf(stderr, "%s%s", buffer, endline);
+#endif
 	}
 
 #ifdef INCLUDE_DEBUG_LOG_IN_CRC_LOG
@@ -385,12 +389,17 @@ void DebugInit(int flags)
 		if (!rts::ClientInstance::initialize())
 			return;
 
+#ifdef _WIN32
 		char dirbuf[ _MAX_PATH ];
 		::GetModuleFileName( nullptr, dirbuf, sizeof( dirbuf ) );
 		if (char *pEnd = strrchr(dirbuf, '\\'))
 		{
 			*(pEnd + 1) = 0;
 		}
+#else
+		char dirbuf[ PATH_MAX ];
+		dirbuf[0] = '\0'; // Use current directory on non-Windows
+#endif
 
 		static_assert(ARRAY_SIZE(theLogFileNamePrev) >= ARRAY_SIZE(dirbuf), "Incorrect array size");
 		strcpy(theLogFileNamePrev, dirbuf);

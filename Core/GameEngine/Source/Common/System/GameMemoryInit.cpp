@@ -111,6 +111,7 @@ void userMemoryManagerInitPools()
 
 	// since we're called prior to main, the cur dir might not be what
 	// we expect. so do it the hard way.
+#ifdef _WIN32
 	char buf[_MAX_PATH];
 	::GetModuleFileName(nullptr, buf, sizeof(buf));
 	if (char* pEnd = strrchr(buf, '\\'))
@@ -118,6 +119,10 @@ void userMemoryManagerInitPools()
 		*pEnd = 0;
 	}
 	strlcat(buf, "\\Data\\INI\\MemoryPools.ini", ARRAY_SIZE(buf));
+#else
+	char buf[PATH_MAX];
+	strlcpy(buf, "Data/INI/MemoryPools.ini", ARRAY_SIZE(buf));
+#endif
 
 	FILE* fp = fopen(buf, "r");
 	if (fp)

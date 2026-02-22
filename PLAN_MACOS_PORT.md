@@ -159,6 +159,11 @@
   `Store_GDI_Char`) behind `_WIN32` with non-Windows stubs; use `void*` for GDI handles
 - [x] **StagingRoomGameInfo.cpp** - Gate SNMP-based local address detection behind `_WIN32`
 - [x] **PingThread.cpp** - Gate ICMP ping via `LoadLibrary`/`GetProcAddress` behind `_WIN32`
+- [x] **ScriptEngine.cpp** (Generals + GeneralsMD) - Add `HMODULE`/`FARPROC`/`LoadLibrary`/
+  `GetProcAddress`/`FreeLibrary` compat stubs for non-Windows (debug/particle editor DLLs)
+- [x] **WWCOMUtil.cpp/h** - Wrap entire COM utility implementation behind `_WIN32`
+- [x] **dx8webbrowser.h** - Disable `ENABLE_EMBEDDED_BROWSER` on non-Windows
+- [x] **FTP.cpp** - Gate `process.h`, `io.h`, `direct.h` behind `_WIN32`
 
 ### Phase 7–8: Packaging, Testing
 - [ ] Not yet started

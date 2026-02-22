@@ -42,6 +42,10 @@
 
 #include "DownloadDebug.h"
 
+#ifndef _WIN32
+#define OutputDebugString(s) fprintf(stderr, "%s", (s))
+#endif
+
 // umm... what?? BGC 3/27/03
 //#ifndef RTS_DEBUG
 //#define RTS_DEBUG

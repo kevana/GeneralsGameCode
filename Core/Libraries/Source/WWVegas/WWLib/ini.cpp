@@ -2281,7 +2281,11 @@ void INIClass::DuplicateCRCError(const char *message, const char *section, const
 	snprintf(buffer, sizeof(buffer), "%s - Duplicate Entry \"%s\" in section \"%s\" (%s)\n", message,
 		entry, section, Filename);
 
+#ifdef _WIN32
 	OutputDebugString(buffer);
+#else
+	fprintf(stderr, "%s", buffer);
+#endif
 	assert(0);
 
 #ifdef RTS_RELEASE

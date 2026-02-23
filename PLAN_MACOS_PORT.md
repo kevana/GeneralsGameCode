@@ -174,7 +174,307 @@
 
 ---
 
-## Executive Summary
+## Phase 9: Implementing Stubbed Functionality
+
+Phases 1–7 focused on getting the codebase to **compile** on macOS/POSIX. Many subsystems
+were stubbed with no-ops or safe defaults to unblock compilation. This section catalogs
+every stub that needs a real implementation, grouped by subsystem and prioritized by
+severity.
+
+### 9.1 GL Rendering — Vertex/Index Buffer Upload & Draw Calls (BLOCKING)
+
+The DX8 stub file (`Core/Libraries/Source/WWVegas/WW3D2/dx8_stubs.cpp`) allocates CPU-side
+memory for vertex/index buffer locks but **never uploads data to the GPU or issues draw
+calls**. Nothing will appear on screen until these are wired to real GL VBOs/VAOs.
+
+**What's stubbed:**
+- [ ] `DX8Wrapper::Set_Vertex_Buffer(const VertexBufferClass*)` — no-op (~line 419)
+- [ ] `DX8Wrapper::Set_Vertex_Buffer(const DynamicVBAccessClass&)` — no-op (~line 420)
+- [ ] `DX8Wrapper::Set_Index_Buffer(const IndexBufferClass*, unsigned short)` — no-op (~line 421)
+- [ ] `DX8Wrapper::Set_Index_Buffer(const DynamicIBAccessClass&, unsigned short)` — no-op (~line 422)
+- [ ] `DX8Wrapper::Draw(...)` — no-op (~line 424)
+- [ ] `DX8Wrapper::Draw_Triangles(...)` — two overloads, both no-op (~lines 425-426)
+- [ ] `DX8Wrapper::Draw_Strip(...)` — no-op (~line 427)
+- [ ] `DX8Wrapper::Draw_Sorting_IB_VB(...)` — no-op (~line 423)
+
+**What's partially working:**
+- `VertexBufferClass::WriteLockClass` allocates a CPU buffer for vertex data — but the data
+  is freed on lock destruction without ever uploading to GL
+- `IndexBufferClass::WriteLockClass` same issue for index data
+- `DX8VertexBufferClass::Create_Vertex_Buffer()` — empty, never creates a GL VBO
+- All `DX8VertexBufferClass::Copy(...)` overloads — empty (~lines 758-763)
+- `DynamicVBAccessClass::Allocate_DX8_Dynamic_Buffer()` — empty (~line 777)
+- `DynamicVBAccessClass::WriteLockClass` — vertices is nullptr (~line 781)
+
+**Implementation plan:**
+1. Create GL VBOs in `DX8VertexBufferClass` constructor / `Create_Vertex_Buffer()`
+2. Create GL IBOs in `DX8IndexBufferClass` constructor
+3. In `WriteLockClass` destructor, call `glBufferData` / `glBufferSubData` to upload
+4. Create a VAO per vertex format in `Set_Vertex_Buffer`, configure `glVertexAttribPointer`
+   based on FVF flags
+5. Implement `Draw()` / `Draw_Triangles()` / `Draw_Strip()` as `glDrawElements` /
+   `glDrawArrays` calls
+6. Wire `DynamicVBAccessClass` to use a pooled GL streaming buffer (`GL_STREAM_DRAW`)
+
+### 9.2 GL Rendering — Texture Loading from Files (BLOCKING)
+
+Textures created from raw dimensions work (the `_Create_DX8_Texture(w, h, fmt, ...)` path
+creates real GL textures). But textures loaded from **file paths** or **surfaces** return
+nullptr.
+
+**What's stubbed:**
+- [ ] `DX8Wrapper::_Create_DX8_Texture(const char*, MipCountType)` → `nullptr` (~line 517)
+- [ ] `DX8Wrapper::_Create_DX8_Texture(IDirect3DSurface8*, MipCountType)` → `nullptr` (~line 518)
+- [ ] `D3DXCreateTextureFromFile(...)` → `D3DERR_INVALIDCALL` (d3d8-compat, ~line 986)
+- [ ] `D3DXLoadSurfaceFromFile(...)` → `D3DERR_INVALIDCALL` (d3d8-compat, ~line 987)
+- [ ] `D3DXLoadSurfaceFromSurface(...)` → `D3DERR_INVALIDCALL` (d3d8-compat, ~line 988)
+- [ ] `DX8Wrapper::_Update_Texture(...)` — no-op (~line 526)
+
+**Implementation plan:**
+1. For `_Create_DX8_Texture(const char*)`: Load TGA/DDS using the existing `TargaImage`
+   loader or `stb_image`, convert to GL texture
+2. For surface-to-texture: Read pixel data from the surface's CPU buffer, upload via
+   `glTexImage2D`
+3. For `D3DXCreateTextureFromFile`: Route through the same TGA/DDS loading path
+
+### 9.3 GL Rendering — Surfaces, Render Targets, Z-Textures (DEFERRABLE)
+
+These enable render-to-texture effects, screenshots, and special rendering passes. The game
+can partially function without them but visual effects will be missing.
+
+**What's stubbed:**
+- [ ] `DX8Wrapper::_Create_DX8_ZTexture(...)` → `nullptr` (~line 519)
+- [ ] `DX8Wrapper::_Create_DX8_Cube_Texture(...)` → `nullptr` (~line 520)
+- [ ] `DX8Wrapper::_Create_DX8_Volume_Texture(...)` → `nullptr` (~line 521)
+- [ ] `DX8Wrapper::_Create_DX8_Surface(unsigned, unsigned, WW3DFormat)` → `nullptr` (~line 522)
+- [ ] `DX8Wrapper::_Create_DX8_Surface(const char*)` → `nullptr` (~line 523)
+- [ ] `DX8Wrapper::_Get_DX8_Front_Buffer()` → `nullptr` (~line 524)
+- [ ] `DX8Wrapper::_Get_DX8_Back_Buffer(unsigned)` → `nullptr` (~line 525)
+- [ ] `DX8Wrapper::Create_Render_Target(int, int, WW3DFormat)` → `nullptr` (~line 533)
+- [ ] `DX8Wrapper::Create_Additional_Swap_Chain(HWND)` → `nullptr` (~line 532)
+- [ ] `IDirect3DSurface8::LockRect/UnlockRect/GetDesc` → `D3DERR_INVALIDCALL` (d3d8-compat)
+- [ ] `IDirect3DTexture8::LockRect/UnlockRect/GetSurfaceLevel` → `D3DERR_INVALIDCALL`
+- [ ] `IDirect3DVertexBuffer8::Lock/Unlock` → `D3DERR_INVALIDCALL`
+- [ ] `IDirect3DIndexBuffer8::Lock/Unlock` → `D3DERR_INVALIDCALL`
+
+**Implementation plan:**
+1. Use GL Framebuffer Objects (FBOs) for render targets
+2. Implement `LockRect`/`UnlockRect` via `glReadPixels` (read) / PBO (write)
+3. Z-textures → GL depth textures attached to FBOs
+4. Front/back buffer access → `glReadPixels` from default framebuffer
+
+### 9.4 GL Rendering — Lighting (DEFERRABLE)
+
+Lighting is set up through the DX8 light API but the stubs discard all light data.
+
+**What's stubbed:**
+- [ ] `DX8Wrapper::Set_Light(unsigned, const D3DLIGHT8*)` — no-op (~line 529)
+- [ ] `DX8Wrapper::Set_Light(unsigned, const LightClass&)` — no-op (~line 530)
+
+**Implementation plan:**
+1. Pass light parameters (position, direction, color, attenuation) as shader uniforms
+2. Extend the GLSL fragment shader with directional + point light calculations
+3. The game primarily uses a small number of lights (ambient + 1–2 directional)
+
+### 9.5 GL Rendering — Device Mode Selection (DEFERRABLE)
+
+These functions manage display mode enumeration, resolution switching, and device selection.
+They return `false` which means fullscreen mode switching won't work, but windowed mode is
+fine.
+
+**What's stubbed:**
+- [ ] `DX8Wrapper::Set_Next_Render_Device()` → `false` (~line 605)
+- [ ] `DX8Wrapper::Toggle_Windowed()` → `false` (~line 606)
+- [ ] `DX8Wrapper::Find_Color_And_Z_Mode()` → `false` (~line 623)
+- [ ] `DX8Wrapper::Find_Color_Mode()` → `false` (~line 624)
+- [ ] `DX8Wrapper::Find_Z_Mode()` → `false` (~line 625)
+- [ ] `DX8Wrapper::Registry_Save_Render_Device(...)` → `false` (~lines 627-630)
+- [ ] `DX8Wrapper::Registry_Load_Render_Device(...)` → `false` (~lines 629-630)
+
+**Implementation plan:**
+1. Use `SDL_GetDisplayMode` to enumerate available resolutions
+2. `Toggle_Windowed` → `SDL_SetWindowFullscreen`
+3. Registry save/load → use the config file backend once registry is implemented
+
+### 9.6 GL Rendering — DX8Caps (DEFERRABLE)
+
+GPU capability detection returns safe defaults. This means the engine won't auto-detect
+optimal quality settings.
+
+**What's stubbed:**
+- [ ] `DX8Caps::Init_Caps()` — empty (~line 663)
+- [ ] `DX8Caps::Compute_Caps()` — empty (~line 664)
+- [ ] All `DX8Caps::Check_*_Support()` — empty (~lines 665-682)
+- [ ] Vendor detection returns `VENDOR_UNKNOWN`
+
+**Implementation plan:**
+1. Query GL capabilities via `glGetIntegerv` (max texture size, extensions, etc.)
+2. Set DX8Caps fields accordingly (e.g., `MaxTextureWidth`, `MaxSimultaneousTextures`)
+3. Check for S3TC extension support for compressed textures
+
+### 9.7 GL Rendering — Mesh Renderer (BLOCKING for 3D models)
+
+The mesh renderer pipeline is entirely stubbed. Without it, no 3D models (units,
+buildings, terrain meshes) will render.
+
+**What's stubbed:**
+- [ ] `DX8MeshRendererClass::Init()` — empty (~line 841)
+- [ ] `DX8MeshRendererClass::Shutdown()` — empty (~line 842)
+- [ ] `DX8MeshRendererClass::Flush()` — empty (~line 843)
+- [ ] `DX8MeshRendererClass::Set_Current_Mesh(...)` — empty (~line 844)
+- [ ] `DX8MeshRendererClass::Set_Polygon_Count(...)` — empty (~line 845)
+- [ ] All `FVFCategoryContainer` methods — empty (~lines 854-869)
+
+**Implementation plan:**
+1. Depends on VBO/VAO infrastructure from 9.1
+2. Implement `Set_Current_Mesh` to bind the mesh's vertex/index buffers
+3. `Flush` should issue the accumulated draw calls for the current batch
+
+### 9.8 Font Rendering — Replace GDI with Cross-Platform Backend (BLOCKING)
+
+All in-game text (menus, HUD, chat, tooltips) relies on GDI font rasterization. The
+non-Windows stub creates zero-width empty character entries, so all text will be invisible.
+
+**Files:** `Core/Libraries/Source/WWVegas/WW3D2/render2dsentence.cpp/h`
+
+**What's stubbed:**
+- [ ] `FontCharsClass::Create_GDI_Font(const char*)` — estimates metrics but creates no
+  bitmap or font handle (~line 1626 in .cpp)
+- [ ] `FontCharsClass::Store_GDI_Char(WCHAR)` — returns zero-width character data with
+  no pixel data (~line 1464 in .cpp)
+- [ ] `FontCharsClass::Free_GDI_Font()` — just nulls out pointers (~line 1687 in .cpp)
+- [ ] GDI handle members in `FontCharsClass` are `void*` placeholders on non-Windows
+  (~lines 131-136 in .h)
+
+**Implementation plan (recommended: FreeType + texture atlas):**
+1. Add FreeType2 as a vcpkg dependency
+2. In `Create_GDI_Font`, open a `.ttf` file via `FT_New_Face`, set pixel size
+3. In `Store_GDI_Char`, call `FT_Load_Char` + `FT_Render_Glyph` to get a bitmap, then
+   copy it into the existing `GDIBitmapBits` buffer (the rest of the pipeline that
+   uploads to a GL texture should work as-is)
+4. Map Windows font names ("Arial", "Courier New") to macOS system font paths or bundled
+   TTF files
+
+### 9.9 Audio System — Replace Miles with OpenAL Soft (BLOCKING)
+
+The game currently uses `AudioManagerDummy` (no-op) on macOS. There is no sound at all.
+
+**File:** `Core/GameEngineDevice/Source/SDLDevice/Common/SDLGameEngine.cpp` (~line 193)
+
+**What's stubbed:**
+- [ ] `SDLGameEngine::createAudioManager()` returns `AudioManagerDummy` — all audio calls
+  are silently ignored
+
+**Implementation plan:**
+1. Create `OpenALAudioManager` class extending `AudioManager` (the abstract base already
+   exists at `Core/GameEngine/Include/Common/GameAudio.h`)
+2. Key methods to implement:
+   - `openDevice()` → `alcOpenDevice` / `alcCreateContext`
+   - `playAudioEvent()` → `alGenSources` / `alSourcePlay`
+   - `set3DSoundPosition()` → `alSource3f(AL_POSITION, ...)`
+   - `setListenerPosition()` → `alListener3f(AL_POSITION, ...)`
+   - `streaming playback` → buffer queue with `alSourceQueueBuffers`
+3. Audio format decoding: WAV (trivial PCM), MP3 (use minimp3 header-only library)
+4. Wire `SDLGameEngine::createAudioManager()` to return the OpenAL implementation
+
+### 9.10 Video Playback — Wire FFmpeg for macOS (MODERATE)
+
+Bink video is Windows/licensed only. An `FFmpegVideoPlayer` already exists in the codebase
+but calls `initializeBinkWithMiles()` which won't work on macOS.
+
+**Files:**
+- `Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp`
+- `Core/GameEngineDevice/Source/VideoDevice/Bink/BinkVideoPlayer.cpp` (gated behind WIN32)
+
+**What's stubbed:**
+- [ ] Non-Windows video creation returns `nullptr` in W3DGameClient — no video playback
+- [ ] `FFmpegVideoPlayer` exists but has Miles audio dependency in initialization
+
+**Implementation plan:**
+1. Remove Miles dependency from `FFmpegVideoPlayer::initialize()` — use FFmpeg's own audio
+   decoding + feed PCM to OpenAL
+2. Ensure FFmpeg decodes video frames and uploads to GL texture for display
+3. Enable `RTS_BUILD_OPTION_FFMPEG=ON` in macOS CMake presets
+4. Wire W3DGameClient to return `FFmpegVideoPlayer` on non-Windows
+
+### 9.11 Registry / Settings Persistence (DEFERRABLE)
+
+All game settings (resolution, volume, keybindings, online login) are lost on restart
+because registry operations are no-ops.
+
+**Files:**
+- `GeneralsMD/Code/GameEngine/Source/Common/System/registry.cpp` (~lines 169-189)
+- `Generals/Code/GameEngine/Source/Common/System/registry.cpp` (same pattern)
+- `Core/Libraries/Source/WWVegas/WWLib/registry.cpp` (~lines 631-740)
+
+**What's stubbed:**
+- [ ] All `Get*FromGeneralsRegistry()` functions return the default value parameter
+- [ ] All `Set*InGeneralsRegistry()` functions are no-ops (data not persisted)
+- [ ] All `RegistryClass::Get_*()` return defaults, `Set_*()` are no-ops
+- [ ] `RegistryClass::Load_Registry()` / `Save_Registry()` — no-ops
+
+**Implementation plan:**
+1. Create a simple INI or JSON config file backend at
+   `~/Library/Application Support/Generals/settings.ini` (macOS) or
+   `~/.config/generals/settings.ini` (Linux)
+2. Implement `Get_*` → read from parsed config, `Set_*` → update in-memory + flush to disk
+3. Game engine registry functions route through the same backend
+
+### 9.12 Debug / Diagnostics Infrastructure (DEFERRABLE)
+
+The POSIX debug stubs provide basic stderr output but lack stack traces, crash dump
+collection, and the interactive debug command system.
+
+**File:** `Core/Libraries/Source/debug/debug_posix_stubs.cpp`
+
+**What's stubbed:**
+- [ ] `DebugStackwalk` — `GetFrameCount()` returns 0, no actual stack walking (~line 384)
+- [ ] `AddFrameEntry()` → `nullptr` — no per-frame debug tracking (~line 352)
+- [ ] `ExecCommand()` — empty, no debug console commands (~line 365)
+- [ ] `AddLogGroup()` → `nullptr` — no log group management (~line 374)
+
+**Implementation plan:**
+1. Stack walking: use `backtrace()` / `backtrace_symbols()` from `<execinfo.h>` (macOS)
+2. Crash dumps: register `SIGSEGV`/`SIGABRT` handler to write a crash log
+3. Debug commands and log groups: low priority, mainly useful for development
+
+### 9.13 DX8 Rendering Statistics (DEFERRABLE)
+
+All frame statistics counters return 0. This only affects debug/profiling overlays.
+
+**What's stubbed (~lines 560-569 in dx8_stubs.cpp):**
+- [ ] `Get_Last_Frame_Matrix_Changes()` → 0
+- [ ] `Get_Last_Frame_Material_Changes()` → 0
+- [ ] `Get_Last_Frame_Vertex_Buffer_Changes()` → 0
+- [ ] `Get_Last_Frame_Index_Buffer_Changes()` → 0
+- [ ] `Get_Last_Frame_Light_Changes()` → 0
+- [ ] `Get_Last_Frame_Texture_Changes()` → 0
+- [ ] `Get_Last_Frame_Render_State_Changes()` → 0
+- [ ] `Get_Last_Frame_Texture_Stage_State_Changes()` → 0
+- [ ] `Get_Last_Frame_DX8_Calls()` → 0
+- [ ] `Get_Last_Frame_Draw_Calls()` → 0
+
+**Implementation plan:** Increment atomic counters in the corresponding GL operations.
+
+---
+
+### Priority Order for Phase 9
+
+| Priority | Section | Subsystem | Why |
+|----------|---------|-----------|-----|
+| **P0** | 9.1 | VBO/VAO/Draw calls | Nothing renders without this |
+| **P0** | 9.2 | Texture loading from files | No textures = white screen |
+| **P0** | 9.7 | Mesh renderer | No 3D models without this |
+| **P0** | 9.8 | Font rendering (FreeType) | No readable text in menus/HUD |
+| **P1** | 9.9 | Audio (OpenAL) | Game is playable but silent |
+| **P1** | 9.10 | Video playback (FFmpeg) | Cutscenes won't play |
+| **P1** | 9.4 | Lighting | Scene will be flat-lit but visible |
+| **P2** | 9.3 | Surfaces / render targets | Advanced effects (water, shadows) |
+| **P2** | 9.11 | Registry / settings | Settings lost on restart |
+| **P2** | 9.5 | Display mode selection | Fullscreen switching |
+| **P3** | 9.6 | DX8Caps | Auto-quality detection |
+| **P3** | 9.12 | Debug infrastructure | Developer diagnostics only |
+| **P3** | 9.13 | Render statistics | Profiling overlay only |
 
 This document outlines a plan for porting Command & Conquer: Generals (and Zero Hour) to
 run on macOS in addition to Windows. The codebase is a C++ game engine with deep Windows

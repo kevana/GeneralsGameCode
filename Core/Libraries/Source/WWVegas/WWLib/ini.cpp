@@ -94,7 +94,11 @@
 #include	"win.h"
 #include "XPIPE.h"
 #include "XSTRAW.h"
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#elif defined(_WIN32) || defined(__linux__)
 #include <malloc.h>
+#endif
 #ifdef _UNIX
 #include <ctype.h>
 #endif

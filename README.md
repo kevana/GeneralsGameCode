@@ -61,7 +61,7 @@ report bugs, and contribute to the project!
 
 ## Building the Game Yourself
 
-We provide support for building the project on Windows and Linux. For detailed build instructions, check the
+We provide support for building the project on Windows, Linux, and macOS. For detailed build instructions, check the
 [Wiki](https://github.com/TheSuperHackers/GeneralsGameCode/wiki/build_guides), which includes guides for VS6, VS2022,
 Docker, CLion, and links to forks supporting additional versions.
 
@@ -78,6 +78,34 @@ cmake --build build/win32 --config Release
 ./scripts/docker-build.sh              # Build using Docker
 ./scripts/docker-install.sh --detect # Install to your game
 ```
+
+**macOS (Apple Silicon)**
+```bash
+# Prerequisites
+xcode-select --install                    # Xcode Command Line Tools
+brew install cmake ninja pkg-config       # Build tools
+
+# Clone vcpkg (one-time setup)
+git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
+~/vcpkg/bootstrap-vcpkg.sh
+export VCPKG_ROOT=~/vcpkg
+
+# Workaround for Xcode 16 CLT: libc++ headers moved into the SDK
+export CPLUS_INCLUDE_PATH=$(xcrun --show-sdk-path)/usr/include/c++/v1
+
+cmake --preset macos-arm64
+cmake --build build/macos-arm64 --config Release
+```
+
+**macOS (Intel)**
+```bash
+cmake --preset macos-x86_64
+cmake --build build/macos-x86_64 --config Release
+```
+
+> **Note**: macOS support is a work in progress. The game compiles but many subsystems
+> (rendering, audio, video playback, font rendering) are still being implemented.
+> See [PLAN_MACOS_PORT.md](PLAN_MACOS_PORT.md) for current status.
 
 ### Dependency management
 

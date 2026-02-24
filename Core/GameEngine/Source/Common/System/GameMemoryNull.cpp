@@ -18,7 +18,11 @@
 
 #include "PreRTS.h"
 
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#else
 #include <malloc.h>
+#endif
 
 #include "Common/GameMemoryNull.h"
 

@@ -64,7 +64,11 @@
 #ifndef TGA_USES_WWLIB_FILE_CLASSES
 #include "WWDebug/wwdebug.h"
 #endif
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#else
 #include <malloc.h>
+#endif
 #include <memory.h>
 #include "stringex.h"
 #ifdef TGA_USES_WWLIB_FILE_CLASSES

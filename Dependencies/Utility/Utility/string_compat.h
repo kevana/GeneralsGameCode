@@ -36,3 +36,18 @@ inline char *_strlwr(char *str) {
 #define strnicmp strncasecmp
 #define strcmpi strcasecmp
 
+// POSIX has strdup, but not _strdup (Windows name)
+#include <string.h>
+#ifndef _strdup
+#define _strdup strdup
+#endif
+
+// lstrcpyn is a Windows API (strncpy + always null-terminates).
+// Provided as an inline function so ::lstrcpyn(...) is valid.
+#include <stddef.h>
+inline char* lstrcpyn(char* dst, const char* src, size_t n)
+{
+    if (n > 0) { strncpy(dst, src, n); dst[n - 1] = '\0'; }
+    return dst;
+}
+

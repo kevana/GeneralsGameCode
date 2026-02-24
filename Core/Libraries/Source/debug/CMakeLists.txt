@@ -39,8 +39,10 @@ target_precompile_headers(core_debug PRIVATE
     "internal.h"
     "internal_except.h"
     "internal_io.h"
-    $<$<PLATFORM_ID:Windows>:<windows.h>>
 )
+if(WIN32)
+    target_precompile_headers(core_debug PRIVATE <windows.h>)
+endif()
 
 target_link_libraries(core_debug PRIVATE
     core_wwcommon

@@ -990,4 +990,7 @@ inline HRESULT D3DXLoadSurfaceFromSurface(IDirect3DSurface8*, const PALETTEENTRY
 // Direct3DCreate8 stub
 inline IDirect3D8* Direct3DCreate8(unsigned int) { return nullptr; }
 
-#endif // d3d8.h compat
+// D3DDP_MAXTEXCOORD: maximum number of texture coordinate sets (same value as D3D8 on Windows)
+#ifndef D3DDP_MAXTEXCOORD
+#define D3DDP_MAXTEXCOORD 8
+#endif

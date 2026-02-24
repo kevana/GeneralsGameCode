@@ -89,8 +89,11 @@ protected:
 	// Exception handler for this thread.
 	ExceptionHandlerType ExceptionHandler;
 
-private:
+public:
+	// Called from the platform thread trampoline (e.g. unix_thread_trampoline on POSIX).
 	static void __cdecl Internal_Thread_Function(void*);
+
+private:
 	volatile unsigned long handle;
 	int thread_priority;
 };

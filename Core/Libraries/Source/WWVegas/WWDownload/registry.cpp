@@ -29,7 +29,9 @@
 
 #include "Registry.h"
 
-bool  getStringFromRegistry(HKEY root, std::string path, std::string key, std::string& val)
+#ifdef _WIN32
+
+bool getStringFromRegistry(HKEY root, std::string path, std::string key, std::string& val)
 {
 	HKEY handle;
 	unsigned char buffer[256];
@@ -176,4 +178,13 @@ bool SetUnsignedIntInRegistry( std::string path, std::string key, unsigned int v
 
 	return setUnsignedIntInRegistry( HKEY_CURRENT_USER, fullPath, key, val );
 }
+
+#else // !_WIN32
+
+bool GetStringFromRegistry(std::string /*path*/, std::string /*key*/, std::string& /*val*/) { return false; }
+bool GetUnsignedIntFromRegistry(std::string /*path*/, std::string /*key*/, unsigned int& /*val*/) { return false; }
+bool SetStringInRegistry(std::string /*path*/, std::string /*key*/, std::string /*val*/) { return false; }
+bool SetUnsignedIntInRegistry(std::string /*path*/, std::string /*key*/, unsigned int /*val*/) { return false; }
+
+#endif // _WIN32
 

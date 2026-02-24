@@ -25,6 +25,18 @@
 #include <cstddef>
 #ifdef _WIN32
 #include <winsock.h>
+#else
+#include <Utility/socket_compat.h>  // sockaddr_in and socket types
+#include <Utility/string_compat.h>  // LPCSTR
+typedef long HRESULT;
+#ifndef S_OK
+#define S_OK 0L
+#endif
+#ifndef MAKE_HRESULT
+#define SEVERITY_ERROR   1
+#define FACILITY_ITF     4
+#define MAKE_HRESULT(sev, fac, code) ((HRESULT)(((unsigned long)(sev)<<31)|((unsigned long)(fac)<<16)|((unsigned long)(code))))
+#endif
 #endif
 #include <Utility/stdio_adapter.h>
 

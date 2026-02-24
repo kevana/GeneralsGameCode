@@ -23,7 +23,14 @@
 
 inline int GetCurrentThreadId()
 {
-  return pthread_self();
+#if defined(__APPLE__)
+  // On macOS, pthread_t is an opaque pointer; use the Mach thread id instead
+  uint64_t tid = 0;
+  pthread_threadid_np(nullptr, &tid);
+  return static_cast<int>(tid);
+#else
+  return static_cast<int>(pthread_self());
+#endif
 }
 
 inline void Sleep(int ms)

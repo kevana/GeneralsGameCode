@@ -182,8 +182,10 @@ target_precompile_headers(core_wwlib PRIVATE
     win.h
     WWCommon.h
     wwstring.h
-    <windows.h>
 )
+if(WIN32)
+    target_precompile_headers(core_wwlib PRIVATE <windows.h>)
+endif()
 
 target_link_libraries(core_wwlib PRIVATE
     core_wwcommon

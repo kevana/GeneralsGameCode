@@ -28,8 +28,10 @@ target_precompile_headers(core_profile PRIVATE
     [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
     "profile.h"
     "internal.h"
-    $<$<PLATFORM_ID:Windows>:<windows.h>>
 )
+if(WIN32)
+    target_precompile_headers(core_profile PRIVATE <windows.h>)
+endif()
 
 target_link_libraries(core_profile PRIVATE
     core_wwcommon

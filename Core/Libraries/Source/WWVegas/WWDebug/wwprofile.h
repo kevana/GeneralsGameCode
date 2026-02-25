@@ -39,10 +39,7 @@
 //#define ENABLE_TIME_AND_MEMORY_LOG
 #include "wwstring.h"
 
-#ifdef _UNIX
-typedef signed long long __int64;
-typedef signed long long _int64;
-#endif
+// __int64 / _int64 are defined in Utility/compat.h on non-Windows.
 
 // enable profiling by default in debug mode.
 #ifdef WWDEBUG

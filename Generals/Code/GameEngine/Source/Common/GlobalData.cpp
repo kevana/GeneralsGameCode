@@ -1017,7 +1017,11 @@ GlobalData::GlobalData()
 	m_shouldUpdateTGAToDDS = FALSE;
 
 	// Default DoubleClickTime to System double click time.
+#ifdef _WIN32
 	m_doubleClickTimeMS = GetDoubleClickTime(); // Note: This is actual MS, not frames.
+#else
+	m_doubleClickTimeMS = 500; // Default 500ms on non-Windows
+#endif
 
 #ifdef DUMP_PERF_STATS
 	m_dumpPerformanceStatistics = FALSE;
@@ -1257,7 +1261,7 @@ UnsignedInt GlobalData::generateExeCRC()
 	exeCRC.set(GENERALS_108_CD_EXE_CRC);
 	DEBUG_LOG(("Fake EXE CRC is 0x%8.8X", exeCRC.get()));
 
-#else
+#elif defined(_WIN32)
 	{
 		Char buffer[ _MAX_PATH ];
 		GetModuleFileName( nullptr, buffer, sizeof( buffer ) );
@@ -1277,6 +1281,9 @@ UnsignedInt GlobalData::generateExeCRC()
 			DEBUG_CRASH(("Executable file has failed to open"));
 		}
 	}
+#else
+	// Non-Windows: skip executable CRC computation
+	DEBUG_LOG(("EXE CRC skipped on non-Windows platform"));
 #endif
 
 	UnsignedInt version = 0;

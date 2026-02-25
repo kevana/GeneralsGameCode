@@ -80,8 +80,9 @@ void Debug::StaticExit(void)
 {
 }
 
-static void __attribute__((constructor(101))) posixPreStaticInit() { Debug::PreStaticInit(); }
-static void __attribute__((constructor(65434))) posixPostStaticInit() { Debug::PostStaticInit(); }
+// These must match the friend declarations in debug_debug.h
+void __attribute__((constructor(101))) GccPreStaticInit() { Debug::PreStaticInit(); }
+void __attribute__((constructor(65434))) GccPostStaticInit() { Debug::PostStaticInit(); }
 
 void Debug::InstallExceptionHandler(void)
 {
@@ -383,11 +384,6 @@ DebugExceptionhandler::~DebugExceptionhandler() {}
 // Stack walk stubs
 DebugStackwalk::DebugStackwalk(void) {}
 DebugStackwalk::~DebugStackwalk(void) {}
-void DebugStackwalk::Walk(int) {}
-unsigned DebugStackwalk::GetFrameCount(void) const { return 0; }
-unsigned DebugStackwalk::GetReturnAddress(unsigned) const { return 0; }
-void DebugStackwalk::GetFunctionInfo(unsigned, char *, unsigned, unsigned &) const {}
-bool DebugStackwalk::IsFunctionInfoAvailable(void) const { return false; }
 
 // Heap abort stub
 void __cdecl _heap_abort(void)

@@ -1024,7 +1024,11 @@ GlobalData::GlobalData()
 	m_shouldUpdateTGAToDDS = FALSE;
 
 	// Default DoubleClickTime to System double click time.
+#ifdef _WIN32
 	m_doubleClickTimeMS = GetDoubleClickTime(); // Note: This is actual MS, not frames.
+#else
+	m_doubleClickTimeMS = 500; // Default 500ms on non-Windows
+#endif
 
 #ifdef DUMP_PERF_STATS
 	m_dumpPerformanceStatistics = FALSE;
@@ -1036,6 +1040,7 @@ GlobalData::GlobalData()
 
 	m_keyboardCameraRotateSpeed = 0.1f;
 
+#ifdef _WIN32
   // Set user data directory based on registry settings instead of INI parameters. This allows us to
   // localize the leaf name.
   char temp[_MAX_PATH + 1];
@@ -1062,6 +1067,7 @@ GlobalData::GlobalData()
     CreateDirectory(myDocumentsDirectory.str(), nullptr);
     m_userDataDir = myDocumentsDirectory;
   }
+#endif // _WIN32
 
 	//-allAdvice feature
 	//m_allAdvice = FALSE;
@@ -1277,7 +1283,7 @@ UnsignedInt GlobalData::generateExeCRC()
 	exeCRC.set(GENERALSMD_104_CD_EXE_CRC);
 	DEBUG_LOG(("Fake EXE CRC is 0x%8.8X", exeCRC.get()));
 
-#else
+#elif defined(_WIN32)
 	{
 		Char buffer[ _MAX_PATH ];
 		GetModuleFileName( nullptr, buffer, sizeof( buffer ) );
@@ -1297,6 +1303,9 @@ UnsignedInt GlobalData::generateExeCRC()
 			DEBUG_CRASH(("Executable file has failed to open"));
 		}
 	}
+#else
+	// Non-Windows: skip executable CRC computation
+	DEBUG_LOG(("EXE CRC skipped on non-Windows platform"));
 #endif
 
 	UnsignedInt version = 0;

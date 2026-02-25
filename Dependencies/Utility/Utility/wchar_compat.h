@@ -19,6 +19,8 @@
 // This file contains WCHAR and related macros for compatibility with non-windows platforms.
 #pragma once
 
+#include <wchar.h>   // wcslen, wcscmp, wcsncmp, wcscpy, etc.
+
 // WCHAR
 typedef wchar_t WCHAR;
 typedef const WCHAR* LPCWSTR;

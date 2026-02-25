@@ -258,7 +258,11 @@ class FVFInfoClass : public W3DMPO
 	unsigned							diffuse_offset;
 	unsigned							specular_offset;
 public:
+#ifdef _WIN32
 	FVFInfoClass(unsigned FVF);
+#else
+	FVFInfoClass(unsigned FVF, unsigned vertex_size=0);
+#endif
 
 	unsigned Get_Location_Offset() const { return location_offset; }
 	unsigned Get_Normal_Offset() const { return normal_offset; }

@@ -48,8 +48,6 @@
 #include <windows.h>
 #endif
 #include <Common/GameMemory.h>
-#include "EABrowserDispatch/BrowserDispatch.h"
-#include "FEBDispatch.h"
 #include <Lib/BaseType.h>
 
 class GameWindow;
@@ -74,7 +72,10 @@ public:
 
 };
 
+#ifdef _WIN32
 
+#include "EABrowserDispatch/BrowserDispatch.h"
+#include "FEBDispatch.h"
 
 class WebBrowser :
 		public FEBDispatch<WebBrowser, IBrowserDispatch, &IID_IBrowserDispatch>,
@@ -101,9 +102,6 @@ class WebBrowser :
 		WebBrowser(const WebBrowser&);
 		const WebBrowser& operator=(const WebBrowser&);
 
-//		Bool RetrievePageURL(const char* page, char* url, int size);
-//		Bool RetrieveHTMLPath(char* path, int size);
-
 	protected:
 		ULONG mRefCount;
 		WebBrowserURL *m_urlList;
@@ -124,3 +122,29 @@ class WebBrowser :
 	};
 
 extern CComObject<WebBrowser> *TheWebBrowser;
+
+#else // !_WIN32
+
+class WebBrowser : public SubsystemInterface
+{
+public:
+	void init( void ) {}
+	void reset( void ) {}
+	void update( void ) {}
+
+	virtual Bool createBrowserWindow(const char* /*tag*/, GameWindow* /*win*/) { return FALSE; }
+	virtual void closeBrowserWindow(GameWindow* /*win*/) {}
+
+	WebBrowserURL *makeNewURL(AsciiString tag);
+	WebBrowserURL *findURL(AsciiString tag);
+
+protected:
+	WebBrowser() : m_urlList(nullptr) {}
+	virtual ~WebBrowser();
+
+	WebBrowserURL *m_urlList;
+};
+
+extern WebBrowser *TheWebBrowser;
+
+#endif // _WIN32

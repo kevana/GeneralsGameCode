@@ -731,8 +731,8 @@ DLOG( "My HResult is: " << Debug::HResult(SomeHRESULTValue) << "\n" );
   void WriteBuildInfo(void);
 
 private:
-#if defined(__GNUC__) && defined(_WIN32)
-  // For GCC/MinGW-w64 targeting Windows, allow constructor functions to call init methods
+#if defined(__GNUC__) && (defined(_WIN32) || defined(__APPLE__) || defined(__linux__))
+  // For GCC/Clang on any platform, allow constructor functions to call init methods
   friend void GccPreStaticInit();
   friend void GccPostStaticInit();
 #endif

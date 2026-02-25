@@ -111,7 +111,9 @@
 #include "metalmap.h"
 #include "w3dexclusionlist.h"
 #include <INI.h>
+#ifdef _WIN32
 #include <windows.h>
+#endif
 #include <d3dx8core.h>
 #include "wwprofile.h"
 #include "assetstatus.h"
@@ -799,7 +801,7 @@ RenderObjClass * WW3DAssetManager::Create_Render_Obj(const char * name)
 		char filename [MAX_PATH];
 		const char *mesh_name = ::strchr (name, '.');
 		if (mesh_name != nullptr) {
-			::lstrcpyn (filename, name, ((int)mesh_name) - ((int)name) + 1);
+			::lstrcpyn (filename, name, (mesh_name - name) + 1);
 			::lstrcat (filename, ".w3d");
 		} else {
 			snprintf( filename, ARRAY_SIZE(filename), "%s.w3d", name);

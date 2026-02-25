@@ -1,0 +1,18 @@
+// Compatibility stub: d3d8caps.h for non-Windows builds.
+// D3DCAPS8 is defined in d3d8.h; this file adds texture filter capability constants.
+#pragma once
+#include "d3d8.h"
+
+// D3DPTFILTERCAPS flags (used with TextureFilterCaps)
+#ifndef D3DPTFILTERCAPS_MINFPOINT
+#define D3DPTFILTERCAPS_MINFPOINT           0x00000100L
+#define D3DPTFILTERCAPS_MINFLINEAR          0x00000200L
+#define D3DPTFILTERCAPS_MINFANISOTROPIC     0x00000400L
+#define D3DPTFILTERCAPS_MIPFPOINT           0x00010000L
+#define D3DPTFILTERCAPS_MIPFLINEAR          0x00020000L
+#define D3DPTFILTERCAPS_MAGFPOINT           0x01000000L
+#define D3DPTFILTERCAPS_MAGFLINEAR          0x02000000L
+#define D3DPTFILTERCAPS_MAGFANISOTROPIC     0x04000000L
+#define D3DPTFILTERCAPS_MAGFPYRAMIDALQUAD   0x08000000L
+#define D3DPTFILTERCAPS_MAGFGAUSSIANQUAD    0x10000000L
+#endif

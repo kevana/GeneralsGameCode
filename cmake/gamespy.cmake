@@ -8,3 +8,20 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(gamespy)
+
+# Add platform defines required by GameSpy source code on macOS/Linux
+if(APPLE)
+    set(_gs_platform_def _MACOSX)
+elseif(UNIX)
+    set(_gs_platform_def _LINUX)
+endif()
+if(_gs_platform_def)
+    if(TARGET gsinterface)
+        target_compile_definitions(gsinterface INTERFACE ${_gs_platform_def})
+    endif()
+    foreach(_gs_tgt gscommon gamespy)
+        if(TARGET ${_gs_tgt})
+            target_compile_definitions(${_gs_tgt} PRIVATE ${_gs_platform_def})
+        endif()
+    endforeach()
+endif()

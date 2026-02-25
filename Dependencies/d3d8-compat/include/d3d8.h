@@ -116,6 +116,10 @@ typedef struct tagPALETTEENTRY {
 } PALETTEENTRY;
 #endif
 
+#ifndef FLOAT
+typedef float FLOAT;
+#endif
+
 // ---------------------------------------------------------------------------
 // D3D8 return codes
 // ---------------------------------------------------------------------------
@@ -395,6 +399,12 @@ typedef enum _D3DTEXTURESTAGESTATETYPE {
     D3DTSS_FORCE_DWORD      = 0x7fffffff
 } D3DTEXTURESTAGESTATETYPE;
 
+// D3DTSS_TEXCOORDINDEX flags
+#define D3DTSS_TCI_PASSTHRU                     0x00000000
+#define D3DTSS_TCI_CAMERASPACENORMAL            0x00010000
+#define D3DTSS_TCI_CAMERASPACEPOSITION          0x00020000
+#define D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR  0x00030000
+
 typedef enum _D3DTRANSFORMSTATETYPE {
     D3DTS_VIEW          = 2,
     D3DTS_PROJECTION    = 3,
@@ -533,6 +543,16 @@ typedef enum _D3DTEXTUREADDRESS {
     D3DTADDRESS_MIRRORONCE  = 5,
     D3DTADDRESS_FORCE_DWORD = 0x7fffffff
 } D3DTEXTUREADDRESS;
+
+typedef enum _D3DCUBEMAP_FACES {
+    D3DCUBEMAP_FACE_POSITIVE_X = 0,
+    D3DCUBEMAP_FACE_NEGATIVE_X = 1,
+    D3DCUBEMAP_FACE_POSITIVE_Y = 2,
+    D3DCUBEMAP_FACE_NEGATIVE_Y = 3,
+    D3DCUBEMAP_FACE_POSITIVE_Z = 4,
+    D3DCUBEMAP_FACE_NEGATIVE_Z = 5,
+    D3DCUBEMAP_FACE_FORCE_DWORD = 0x7fffffff
+} D3DCUBEMAP_FACES;
 
 typedef enum _D3DSTENCILOP {
     D3DSTENCILOP_KEEP       = 1,
@@ -937,7 +957,11 @@ struct IUnknown_d3d8_compat {
 
 struct IDirect3DResource8 : public IUnknown_d3d8_compat {};
 
-struct IDirect3DBaseTexture8 : public IDirect3DResource8 {};
+struct IDirect3DBaseTexture8 : public IDirect3DResource8 {
+    unsigned int GetLevelCount() { return 0; }
+    unsigned long GetPriority() { return 0; }
+    unsigned long SetPriority(unsigned long) { return 0; }
+};
 struct IDirect3DTexture8 : public IDirect3DBaseTexture8 {
     HRESULT GetSurfaceLevel(unsigned int, struct IDirect3DSurface8**) { return D3DERR_INVALIDCALL; }
     HRESULT GetLevelDesc(unsigned int, D3DSURFACE_DESC*) { return D3DERR_INVALIDCALL; }
@@ -977,7 +1001,9 @@ struct IDirect3DSwapChain8 : public IUnknown_d3d8_compat {
 };
 
 struct IDirect3D8 : public IUnknown_d3d8_compat {};
-struct IDirect3DDevice8 : public IUnknown_d3d8_compat {};
+struct IDirect3DDevice8 : public IUnknown_d3d8_compat {
+    HRESULT TestCooperativeLevel() { return D3D_OK; }
+};
 
 // ---------------------------------------------------------------------------
 // D3DX utility functions (stubs)

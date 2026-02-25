@@ -58,6 +58,9 @@ if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQU
     include(cmake/miles.cmake)
     include(cmake/bink.cmake)
     include(cmake/dx8.cmake)
+elseif(NOT WIN32)
+    # Include miles stub for headers on non-Windows (stub only, no real libs)
+    include(cmake/miles.cmake)
 endif()
 
 # Provide empty interface targets for Windows-only SDKs on other platforms

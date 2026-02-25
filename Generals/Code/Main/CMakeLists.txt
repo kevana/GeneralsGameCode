@@ -68,6 +68,12 @@ target_include_directories(g_generals PRIVATE
     ${CMAKE_BINARY_DIR}/Code/Libraries
 )
 
+if(NOT WIN32)
+    target_include_directories(g_generals PRIVATE
+        ${CMAKE_SOURCE_DIR}/Generals/Code/GameEngine/Include/Precompiled
+    )
+endif()
+
 if(WIN32)
     target_sources(g_generals PRIVATE
         WinMain.cpp

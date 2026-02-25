@@ -259,10 +259,11 @@ static void GL_ApplyShaderState(const ShaderClass& shader)
 	bool fogEnabled = (fogFunc != ShaderClass::FOG_DISABLE);
 	glUniform1i(s_glState.shader.loc_fogEnable, fogEnabled ? 1 : 0);
 	if (fogEnabled) {
+		D3DCOLOR fogColor = DX8Wrapper::Get_Fog_Color();
 		float fc[4] = {
-			((DX8Wrapper::FogColor >> 16) & 0xFF) / 255.0f,
-			((DX8Wrapper::FogColor >> 8) & 0xFF) / 255.0f,
-			(DX8Wrapper::FogColor & 0xFF) / 255.0f,
+			((fogColor >> 16) & 0xFF) / 255.0f,
+			((fogColor >> 8) & 0xFF) / 255.0f,
+			(fogColor & 0xFF) / 255.0f,
 			1.0f
 		};
 		glUniform4fv(s_glState.shader.loc_fogColor, 1, fc);
@@ -416,7 +417,11 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* vp)
 		glViewport(vp->X, vp->Y, vp->Width, vp->Height);
 	}
 }
+#ifdef RTS_ZEROHOUR
+void DX8Wrapper::Set_Vertex_Buffer(const VertexBufferClass*, unsigned) {}
+#else
 void DX8Wrapper::Set_Vertex_Buffer(const VertexBufferClass*) {}
+#endif
 void DX8Wrapper::Set_Vertex_Buffer(const DynamicVBAccessClass&) {}
 void DX8Wrapper::Set_Index_Buffer(const IndexBufferClass*, unsigned short) {}
 void DX8Wrapper::Set_Index_Buffer(const DynamicIBAccessClass&, unsigned short) {}
@@ -653,7 +658,7 @@ const char* DX8Wrapper::Get_DX8_Blend_Op_Name(unsigned) { return ""; }
 
 // ===== DX8Caps =====
 DX8Caps::DX8Caps(IDirect3D8*, IDirect3DDevice8*, WW3DFormat, const D3DADAPTER_IDENTIFIER8&)
-	: MaxDisplayWidth(4096), MaxDisplayHeight(4096), hwVPCaps{}, swVPCaps{},
+	: MaxDisplayWidth(4096), MaxDisplayHeight(4096),
 	  SupportTnL(false), SupportDXTC(true), supportGamma(false), SupportNPatches(false),
 	  SupportBumpEnvmap(false), SupportBumpEnvmapLuminance(false),
 	  SupportTextureFormat{}, SupportRenderToTextureFormat{}, SupportDepthStencilFormat{},
@@ -694,9 +699,9 @@ static unsigned Compute_FVF_Size(unsigned fvf) {
 	return sz;
 }
 
-FVFInfoClass::FVFInfoClass(unsigned fvf)
+FVFInfoClass::FVFInfoClass(unsigned fvf, unsigned)
 	: FVF(fvf), fvf_size(Compute_FVF_Size(fvf)),
-	  location_offset(0), normal_offset(0), tex_offset{},
+	  location_offset(0), normal_offset(0), blend_offset(0), texcoord_offset{},
 	  diffuse_offset(0), specular_offset(0) {}
 void FVFInfoClass::Get_FVF_Name(StringClass& name) const { name = "FVF_STUB"; }
 
@@ -709,8 +714,8 @@ static unsigned s_glIBOIndices = 0;
 static unsigned s_glIBOMemory = 0;
 
 // ===== VertexBufferClass =====
-VertexBufferClass::VertexBufferClass(unsigned t, unsigned fvf, unsigned short vc)
-	: type(t), VertexCount(vc), engine_refs(0) { fvf_info = new FVFInfoClass(fvf); }
+VertexBufferClass::VertexBufferClass(unsigned t, unsigned fvf, unsigned short vc, unsigned vertex_size)
+	: type(t), VertexCount(vc), engine_refs(0) { fvf_info = new FVFInfoClass(fvf, vertex_size); }
 VertexBufferClass::~VertexBufferClass() { delete fvf_info; }
 unsigned VertexBufferClass::Get_Total_Buffer_Count() { return s_glVBOCount; }
 unsigned VertexBufferClass::Get_Total_Allocated_Vertices() { return s_glVBOVertices; }
@@ -718,8 +723,9 @@ unsigned VertexBufferClass::Get_Total_Allocated_Memory() { return s_glVBOMemory;
 void VertexBufferClass::Add_Engine_Ref() const { const_cast<VertexBufferClass*>(this)->engine_refs++; }
 void VertexBufferClass::Release_Engine_Ref() const { const_cast<VertexBufferClass*>(this)->engine_refs--; }
 VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* vb, int)
-	: Vertices(nullptr)
+	: VertexBufferLockClass(vb)
 {
+	Vertices = nullptr;
 	if (vb && vb->fvf_info) {
 		unsigned size = vb->VertexCount * vb->fvf_info->Get_FVF_Size();
 		Vertices = (VertexFormatXYZNDUV2*)new unsigned char[size];
@@ -730,8 +736,9 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 	delete[] (unsigned char*)Vertices;
 }
 VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* vb, unsigned start, unsigned count)
-	: Vertices(nullptr)
+	: VertexBufferLockClass(vb)
 {
+	Vertices = nullptr;
 	if (vb && vb->fvf_info) {
 		unsigned size = count * vb->fvf_info->Get_FVF_Size();
 		Vertices = (VertexFormatXYZNDUV2*)new unsigned char[size];
@@ -743,16 +750,16 @@ VertexBufferClass::AppendLockClass::~AppendLockClass()
 }
 
 // DX8VertexBufferClass - uses GL VBOs
-DX8VertexBufferClass::DX8VertexBufferClass(unsigned fvf, unsigned short vc, UsageType)
-	: VertexBufferClass(BUFFER_TYPE_DX8, fvf, vc), VertexBuffer(nullptr) {}
+DX8VertexBufferClass::DX8VertexBufferClass(unsigned fvf, unsigned short vc, UsageType, unsigned vertex_size)
+	: VertexBufferClass(BUFFER_TYPE_DX8, fvf, vc, vertex_size), VertexBuffer(nullptr) {}
 DX8VertexBufferClass::DX8VertexBufferClass(const Vector3*, const Vector3*, const Vector2*, unsigned short vc, UsageType)
 	: VertexBufferClass(BUFFER_TYPE_DX8, D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX1, vc), VertexBuffer(nullptr) {}
 DX8VertexBufferClass::DX8VertexBufferClass(const Vector3*, const Vector3*, const Vector4*, const Vector2*, unsigned short vc, UsageType)
 	: VertexBufferClass(BUFFER_TYPE_DX8, D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_DIFFUSE|D3DFVF_TEX1, vc), VertexBuffer(nullptr) {}
+DX8VertexBufferClass::DX8VertexBufferClass(const Vector3*, const Vector4*, const Vector2*, unsigned short vc, UsageType)
+	: VertexBufferClass(BUFFER_TYPE_DX8, D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1, vc), VertexBuffer(nullptr) {}
 DX8VertexBufferClass::DX8VertexBufferClass(const Vector3*, const Vector2*, unsigned short vc, UsageType)
 	: VertexBufferClass(BUFFER_TYPE_DX8, D3DFVF_XYZ|D3DFVF_TEX1, vc), VertexBuffer(nullptr) {}
-DX8VertexBufferClass::DX8VertexBufferClass(const Vector3*, const Vector3*, unsigned short vc, UsageType)
-	: VertexBufferClass(BUFFER_TYPE_DX8, D3DFVF_XYZ|D3DFVF_NORMAL, vc), VertexBuffer(nullptr) {}
 DX8VertexBufferClass::~DX8VertexBufferClass() {}
 void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType) {}
 void DX8VertexBufferClass::Copy(const Vector3*, const Vector3*, const Vector2*, unsigned, unsigned) {}
@@ -792,26 +799,26 @@ void IndexBufferClass::Release_Engine_Ref() const { const_cast<IndexBufferClass*
 void IndexBufferClass::Copy(unsigned int*, unsigned, unsigned) {}
 void IndexBufferClass::Copy(unsigned short*, unsigned, unsigned) {}
 IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* ib, int)
-	: Indices(nullptr)
+	: index_buffer(ib), indices(nullptr)
 {
 	if (ib) {
-		Indices = new unsigned short[ib->index_count];
+		indices = new unsigned short[ib->index_count];
 	}
 }
 IndexBufferClass::WriteLockClass::~WriteLockClass()
 {
-	delete[] Indices;
+	delete[] indices;
 }
 IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* ib, unsigned start, unsigned count)
-	: Indices(nullptr)
+	: index_buffer(ib), indices(nullptr)
 {
 	if (ib) {
-		Indices = new unsigned short[count];
+		indices = new unsigned short[count];
 	}
 }
 IndexBufferClass::AppendLockClass::~AppendLockClass()
 {
-	delete[] Indices;
+	delete[] indices;
 }
 
 DX8IndexBufferClass::DX8IndexBufferClass(unsigned short ic, UsageType)
@@ -851,14 +858,18 @@ void DX8MeshRendererClass::Log_Statistics_String(bool) {}
 void DX8MeshRendererClass::Invalidate(bool) {}
 
 // DX8FVFCategoryContainer subclasses
-DX8RigidFVFCategoryContainer::DX8RigidFVFCategoryContainer(unsigned, bool) {}
+DX8FVFCategoryContainer::DX8FVFCategoryContainer(unsigned FVF, bool sorting) {}
+DX8FVFCategoryContainer::~DX8FVFCategoryContainer() {}
+DX8RigidFVFCategoryContainer::DX8RigidFVFCategoryContainer(unsigned FVF, bool sorting)
+	: DX8FVFCategoryContainer(FVF, sorting) {}
 DX8RigidFVFCategoryContainer::~DX8RigidFVFCategoryContainer() {}
 void DX8RigidFVFCategoryContainer::Log(bool) {}
 void DX8RigidFVFCategoryContainer::Render(void) {}
 bool DX8RigidFVFCategoryContainer::Check_If_Mesh_Fits(MeshModelClass*) { return false; }
 void DX8RigidFVFCategoryContainer::Add_Mesh(MeshModelClass*) {}
 
-DX8SkinFVFCategoryContainer::DX8SkinFVFCategoryContainer(bool) {}
+DX8SkinFVFCategoryContainer::DX8SkinFVFCategoryContainer(bool sorting)
+	: DX8FVFCategoryContainer(DX8_FVF_XYZNUV1, sorting) {}
 DX8SkinFVFCategoryContainer::~DX8SkinFVFCategoryContainer() {}
 void DX8SkinFVFCategoryContainer::Log(bool) {}
 void DX8SkinFVFCategoryContainer::Render(void) {}

@@ -182,7 +182,7 @@ public:
     */
     unsigned GetId(void) const
     {
-      return unsigned(m_threadID);
+      return static_cast<unsigned>(reinterpret_cast<uintptr_t>(m_threadID));
     }
 
   private:

@@ -31,10 +31,24 @@ inline char *_strlwr(char *str) {
   return str;
 }
 
+inline char *strupr(char *str) {
+  for (int i = 0; str[i] != '\0'; i++) {
+    str[i] = toupper(str[i]);
+  }
+  return str;
+}
+
+#include <wctype.h>  // towlower
+
 #define strlwr _strlwr
 #define stricmp strcasecmp
 #define strnicmp strncasecmp
 #define strcmpi strcasecmp
+
+// MSVC uses underscore-prefixed names for these
+#define _stricmp strcasecmp
+#define _strnicmp strncasecmp
+#define _strupr strupr  // strupr is defined above
 
 // POSIX has strdup, but not _strdup (Windows name)
 #include <string.h>
@@ -42,12 +56,32 @@ inline char *_strlwr(char *str) {
 #define _strdup strdup
 #endif
 
-// lstrcpyn is a Windows API (strncpy + always null-terminates).
-// Provided as an inline function so ::lstrcpyn(...) is valid.
+// lstrcpyn / lstrcat are Windows APIs.
+// Provided as inline functions so ::lstrcpyn(...) and ::lstrcat(...) are valid.
 #include <stddef.h>
 inline char* lstrcpyn(char* dst, const char* src, size_t n)
 {
     if (n > 0) { strncpy(dst, src, n); dst[n - 1] = '\0'; }
     return dst;
+}
+
+inline char* lstrcat(char* dst, const char* src)
+{
+    return strcat(dst, src);
+}
+
+inline char* lstrcpy(char* dst, const char* src)
+{
+    return strcpy(dst, src);
+}
+
+inline int lstrlen(const char* str)
+{
+    return static_cast<int>(strlen(str));
+}
+
+inline int lstrcmpi(const char* s1, const char* s2)
+{
+    return strcasecmp(s1, s2);
 }
 

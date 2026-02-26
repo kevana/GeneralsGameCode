@@ -91,6 +91,16 @@ typedef struct _SYSTEMTIME {
 // GetCommandLineA - stub returning empty string on non-Windows
 inline const char* GetCommandLineA() { return ""; }
 
+// GetDoubleClickTime — Windows API stub (returns 500ms default)
+#ifndef GetDoubleClickTime
+inline unsigned int GetDoubleClickTime() { return 500; }
+#endif
+
+// VK_RETURN — Windows virtual key code
+#ifndef VK_RETURN
+#define VK_RETURN 0x0D
+#endif
+
 // GetCurrentDirectory - POSIX equivalent
 #include <unistd.h>
 inline DWORD GetCurrentDirectoryA(DWORD size, char* buf)
@@ -183,6 +193,32 @@ typedef void* HANDLE;
 #define INVALID_HANDLE_VALUE ((HANDLE)(long long)-1)
 #endif
 
+// LARGE_INTEGER / QueryPerformanceCounter / QueryPerformanceFrequency / Sleep
+#ifndef LARGE_INTEGER
+#include <mach/mach_time.h>
+typedef union _LARGE_INTEGER {
+    struct { unsigned long LowPart; long HighPart; };
+    long long QuadPart;
+} LARGE_INTEGER;
+inline BOOL QueryPerformanceFrequency(LARGE_INTEGER* freq)
+{
+    mach_timebase_info_data_t info;
+    mach_timebase_info(&info);
+    // Convert mach_absolute_time to "ticks per second"
+    freq->QuadPart = (long long)(1000000000LL * info.denom / info.numer);
+    return TRUE;
+}
+inline BOOL QueryPerformanceCounter(LARGE_INTEGER* count)
+{
+    count->QuadPart = (long long)mach_absolute_time();
+    return TRUE;
+}
+#endif
+#ifndef Sleep
+#include <unistd.h>
+inline void Sleep(DWORD dwMilliseconds) { usleep(dwMilliseconds * 1000); }
+#endif
+
 // _MAX_DRIVE, _MAX_DIR, _MAX_FNAME, _MAX_EXT, _MAX_PATH
 #ifndef _MAX_DRIVE
 #define _MAX_DRIVE 3
@@ -210,6 +246,163 @@ typedef void* HANDLE;
 #include "time_compat.h"
 #include "thread_compat.h"
 #include "socket_compat.h"
+
+// MSVC-specific min/max aliases
+#ifndef __max
+#define __max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+#ifndef __min
+#define __min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+// Windows BOOL / TRUE / FALSE
+#include <stdio.h>
+#ifndef BOOL
+typedef int BOOL;
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+// _access — Windows file-access check stub
+#include <unistd.h>
+#define _access access
+
+// CreateDirectory(path, secAttr) — Windows API; secAttr ignored on POSIX
+#include <sys/stat.h>
+inline BOOL CreateDirectory(const char* path, void* /*securityAttrs*/)
+{
+    return mkdir(path, 0755) == 0 ? TRUE : FALSE;
+}
+
+// SIZE_T (Windows type alias for size_t)
+#ifndef SIZE_T
+typedef size_t SIZE_T;
+#endif
+
+// MEMORYSTATUS / GlobalMemoryStatus — Windows memory info API stub
+#ifndef MEMORYSTATUS
+typedef struct _MEMORYSTATUS {
+    DWORD  dwLength;
+    DWORD  dwMemoryLoad;
+    SIZE_T dwTotalPhys;
+    SIZE_T dwAvailPhys;
+    SIZE_T dwTotalPageFile;
+    SIZE_T dwAvailPageFile;
+    SIZE_T dwTotalVirtual;
+    SIZE_T dwAvailVirtual;
+} MEMORYSTATUS;
+inline void GlobalMemoryStatus(MEMORYSTATUS* lpmst)
+{
+    if (!lpmst) return;
+    memset(lpmst, 0, sizeof(*lpmst));
+    lpmst->dwLength = sizeof(*lpmst);
+}
+#endif
+
+// CopyFile — Windows API stub using POSIX I/O
+inline BOOL CopyFile(const char* src, const char* dst, BOOL failIfExists)
+{
+    if (failIfExists) {
+        FILE* f = fopen(dst, "rb");
+        if (f) { fclose(f); return FALSE; }
+    }
+    FILE* in = fopen(src, "rb");
+    if (!in) return FALSE;
+    FILE* out = fopen(dst, "wb");
+    if (!out) { fclose(in); return FALSE; }
+    char buf[65536];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) { fclose(in); fclose(out); return FALSE; }
+    }
+    fclose(in);
+    fclose(out);
+    return TRUE;
+}
+
+// DeleteFile — Windows API stub (returns nonzero on success)
+inline BOOL DeleteFile(const char* path) { return remove(path) == 0; }
+
+// GetLastError / FormatMessageW — Windows error reporting stubs
+#include <errno.h>
+inline DWORD GetLastError() { return (DWORD)errno; }
+#ifndef FORMAT_MESSAGE_FROM_SYSTEM
+#define FORMAT_MESSAGE_FROM_SYSTEM 0x00001000
+#endif
+#include <wchar.h>
+inline DWORD FormatMessageW(DWORD /*flags*/, const void* /*src*/, DWORD /*id*/,
+    DWORD /*langId*/, wchar_t* buf, DWORD sz, void* /*args*/)
+{
+    if (buf && sz > 0) buf[0] = L'\0';
+    return 0;
+}
+inline DWORD FormatMessage(DWORD /*flags*/, const void* /*src*/, DWORD /*id*/,
+    DWORD /*langId*/, char* buf, DWORD sz, void* /*args*/)
+{
+    if (buf && sz > 0) buf[0] = '\0';
+    return 0;
+}
+
+// SHGetSpecialFolderLocation / SHGetPathFromIDList / CSIDL — Windows Shell API stubs
+typedef void* LPITEMIDLIST;
+#ifndef CSIDL_DESKTOPDIRECTORY
+#define CSIDL_DESKTOPDIRECTORY 0x0010
+#endif
+inline long SHGetSpecialFolderLocation(void* /*hwnd*/, int /*csidl*/, LPITEMIDLIST* pidl) { if (pidl) *pidl = nullptr; return -1; }
+inline BOOL SHGetPathFromIDList(LPITEMIDLIST /*pidl*/, char* pszPath) { if (pszPath) pszPath[0] = '\0'; return FALSE; }
+
+// LOCALE_SYSTEM_DEFAULT / GetDateFormat — Windows locale API stubs
+#ifndef LOCALE_SYSTEM_DEFAULT
+#define LOCALE_SYSTEM_DEFAULT 0x0800
+#endif
+inline int GetDateFormat(DWORD /*locale*/, DWORD /*flags*/, const void* /*date*/,
+    const char* format, char* buf, int bufSize)
+{
+    if (!buf || bufSize <= 0) return 0;
+    time_t t = time(nullptr);
+    struct tm* lt = localtime(&t);
+    if (!lt) { buf[0] = '\0'; return 0; }
+    const char* fmt = "%Y";
+    if (format) {
+        if (strcmp(format, "yyyy") == 0) fmt = "%Y";
+        else if (strcmp(format, "MM") == 0) fmt = "%m";
+        else if (strcmp(format, "dd") == 0) fmt = "%d";
+    }
+    return (int)strftime(buf, bufSize, fmt, lt);
+}
+
+// _spawnl / _P_NOWAIT — stubs (process spawning not supported on POSIX via this API)
+#ifndef _P_NOWAIT
+#define _P_NOWAIT 1
+#endif
+#include <stdarg.h>
+inline intptr_t _spawnl(int /*mode*/, const char* /*path*/, const char* /*arg0*/, ...) { return -1; }
+
+// OSVERSIONINFO / GetVersionEx — Windows version info stubs
+#ifndef OSVERSIONINFO
+typedef struct _OSVERSIONINFOA {
+    DWORD dwOSVersionInfoSize;
+    DWORD dwMajorVersion;
+    DWORD dwMinorVersion;
+    DWORD dwBuildNumber;
+    DWORD dwPlatformId;
+    char szCSDVersion[128];
+} OSVERSIONINFOA;
+typedef OSVERSIONINFOA OSVERSIONINFO;
+#define VER_PLATFORM_WIN32_WINDOWS 1
+inline BOOL GetVersionEx(OSVERSIONINFO* lpVersionInfo)
+{
+    if (!lpVersionInfo) return FALSE;
+    memset(lpVersionInfo, 0, sizeof(*lpVersionInfo));
+    lpVersionInfo->dwMajorVersion = 10;  // Pretend modern OS
+    lpVersionInfo->dwPlatformId = 2;     // VER_PLATFORM_WIN32_NT
+    return TRUE;
+}
+#endif
 
 #endif
 

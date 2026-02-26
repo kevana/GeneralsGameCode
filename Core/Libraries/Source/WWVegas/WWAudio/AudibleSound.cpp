@@ -216,7 +216,11 @@ AudibleSoundClass::~AudibleSoundClass (void)
 	// with Miles internals).
 	//
 	if (m_Buffer != nullptr) {
+#ifdef _WIN32
 		WWAudioThreadsClass::Add_Delayed_Release_Object (m_Buffer);
+#else
+		REF_PTR_RELEASE(m_Buffer);
+#endif
 		m_Buffer = nullptr;
 	}
 
@@ -270,7 +274,11 @@ AudibleSoundClass::Set_Buffer (SoundBufferClass *buffer)
 	// with Miles internals).
 	//
 	if (m_Buffer != nullptr) {
+#ifdef _WIN32
 		WWAudioThreadsClass::Add_Delayed_Release_Object (m_Buffer);
+#else
+		REF_PTR_RELEASE(m_Buffer);
+#endif
 		m_Buffer = nullptr;
 	}
 	REF_PTR_SET (m_Buffer, buffer);

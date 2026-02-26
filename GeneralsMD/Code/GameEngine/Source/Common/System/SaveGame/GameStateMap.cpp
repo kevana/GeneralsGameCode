@@ -29,6 +29,9 @@
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"
+#ifndef _WIN32
+#include <dirent.h>
+#endif
 
 #include "Common/file.h"
 #include "Common/FileSystem.h"
@@ -452,6 +455,7 @@ void GameStateMap::xfer( Xfer *xfer )
 void GameStateMap::clearScratchPadMaps( void )
 {
 
+#ifdef _WIN32
 	// remember the current directory
 	char currentDirectory[ _MAX_PATH ];
 	GetCurrentDirectory( _MAX_PATH, currentDirectory );
@@ -515,5 +519,26 @@ void GameStateMap::clearScratchPadMaps( void )
 
 	// restore our directory to the current directory
 	SetCurrentDirectory( currentDirectory );
+
+#else // POSIX: iterate the save directory directly using dirent
+	const AsciiString& saveDir = TheGameState->getSaveDirectory();
+	DIR* dir = opendir( saveDir.str() );
+	if( dir )
+	{
+		struct dirent* entry;
+		while( (entry = readdir(dir)) != nullptr )
+		{
+			// see if there is a ".map" at end of this filename
+			Char *c = strrchr( entry->d_name, '.' );
+			if( c && strcasecmp( c, ".map" ) == 0 )
+			{
+				AsciiString fullPath = saveDir;
+				fullPath.concat( entry->d_name );
+				remove( fullPath.str() );
+			}
+		}
+		closedir( dir );
+	}
+#endif
 
 }

@@ -43,3 +43,19 @@ inline unsigned int GetTickCount()
   return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
+// SYSTEMTIME is defined in compat.h; GetLocalTime fills it from localtime()
+inline void GetLocalTime(SYSTEMTIME* st)
+{
+  time_t t = time(nullptr);
+  struct tm* lt = localtime(&t);
+  if (!st || !lt) return;
+  st->wYear         = (unsigned short)(lt->tm_year + 1900);
+  st->wMonth        = (unsigned short)(lt->tm_mon + 1);
+  st->wDayOfWeek    = (unsigned short)(lt->tm_wday);
+  st->wDay          = (unsigned short)(lt->tm_mday);
+  st->wHour         = (unsigned short)(lt->tm_hour);
+  st->wMinute       = (unsigned short)(lt->tm_min);
+  st->wSecond       = (unsigned short)(lt->tm_sec);
+  st->wMilliseconds = 0;
+}
+

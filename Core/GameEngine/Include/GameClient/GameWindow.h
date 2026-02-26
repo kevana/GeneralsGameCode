@@ -73,7 +73,8 @@ enum { WIN_COLOR_UNDEFINED = GAME_COLOR_UNDEFINED };
 
 // WindowMsgData --------------------------------------------------------------
 //-----------------------------------------------------------------------------
-typedef UnsignedInt WindowMsgData;
+// Must be pointer-sized so that pointers can be passed as message data on 64-bit.
+typedef uintptr_t WindowMsgData;
 
 //-----------------------------------------------------------------------------
 enum WindowMsgHandledType CPP_11(: Int) { MSG_IGNORED, MSG_HANDLED };

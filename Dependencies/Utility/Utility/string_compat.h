@@ -23,7 +23,10 @@
 typedef const char* LPCSTR;
 typedef char* LPSTR;
 
-// String functions
+// String functions — declared with C linkage to match GameSpy's extern "C" declarations.
+#ifdef __cplusplus
+extern "C" {
+#endif
 inline char *_strlwr(char *str) {
   for (int i = 0; str[i] != '\0'; i++) {
     str[i] = tolower(str[i]);
@@ -37,6 +40,9 @@ inline char *strupr(char *str) {
   }
   return str;
 }
+#ifdef __cplusplus
+}
+#endif
 
 #include <wctype.h>  // towlower
 
@@ -84,4 +90,24 @@ inline int lstrcmpi(const char* s1, const char* s2)
 {
     return strcasecmp(s1, s2);
 }
+
+// itoa — MSVC non-standard integer-to-string (base 2-36)
+#include <stdio.h>
+#ifndef _itoa
+inline char* itoa(int value, char* str, int base)
+{
+    if (base == 10) { sprintf(str, "%d", value); return str; }
+    // Handle other bases via stdlib
+    char tmp[65]; int i = 0; unsigned int uval = (unsigned int)value;
+    if (base == 10 && value < 0) { str[i++] = '-'; uval = (unsigned int)(-value); }
+    int start = i;
+    do { tmp[i++] = "0123456789abcdefghijklmnopqrstuvwxyz"[uval % base]; uval /= base; } while (uval);
+    tmp[i] = '\0';
+    // reverse
+    for (int a = start, b = i - 1; a < b; ++a, --b) { char c = tmp[a]; tmp[a] = tmp[b]; tmp[b] = c; }
+    strcpy(str, tmp);
+    return str;
+}
+#define _itoa itoa
+#endif
 

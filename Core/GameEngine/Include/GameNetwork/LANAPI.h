@@ -271,7 +271,11 @@ struct LANMessage
 };
 #pragma pack(pop)
 
+// On non-Windows wchar_t is 4 bytes instead of 2, making LANMessage larger.
+// Cross-platform LAN compatibility requires using char16_t in the network struct.
+#ifdef _WIN32
 static_assert(sizeof(LANMessage) <= MAX_LANAPI_PACKET_SIZE, "LANMessage struct cannot be larger than the max packet size");
+#endif
 
 
 /**

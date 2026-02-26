@@ -33,9 +33,11 @@
 // If callback is nullptr then will write using OuputDebugString
 void StackDump(void (*callback)(const char*));
 
+#ifdef _WIN32
 // Writes a stackdump (provide a callback : gets called per line)
 // If callback is nullptr then will write using OuputDebugString
 void StackDumpFromContext(DWORD eip,DWORD esp,DWORD ebp, void (*callback)(const char*));
+#endif
 
 // Gets count* addresses from the current stack
 void FillStackAddresses(void**addresses, unsigned int count, unsigned int skip = 0);
@@ -45,8 +47,12 @@ void StackDumpFromAddresses(void**addresses, unsigned int count, void (*callback
 
 void GetFunctionDetails(void *pointer, char*name, char*filename, unsigned int* linenumber, unsigned int* address);
 
+#ifdef _WIN32
 // Dumps out the exception info and stack trace.
 void DumpExceptionInfo( unsigned int u, EXCEPTION_POINTERS* e_info );
+#else
+__inline void DumpExceptionInfo( unsigned int u, void* e_info ) {}
+#endif
 
 #else
 
@@ -60,8 +66,12 @@ __inline void StackDumpFromAddresses(void**addresses, unsigned int count, void (
 
 __inline void GetFunctionDetails(void *pointer, char*name, char*filename, unsigned int* linenumber, unsigned int* address) {}
 
+#ifdef _WIN32
 // Dumps out the exception info and stack trace.
 __inline void DumpExceptionInfo( unsigned int u, EXCEPTION_POINTERS* e_info ) {};
+#else
+__inline void DumpExceptionInfo( unsigned int u, void* e_info ) {}
+#endif
 
 #endif
 

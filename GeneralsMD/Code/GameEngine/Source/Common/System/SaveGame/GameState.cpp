@@ -29,6 +29,9 @@
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"
+#ifndef _WIN32
+#include <dirent.h>
+#endif
 #include "Common/file.h"
 #include "Common/FileSystem.h"
 #include "Common/GameEngine.h"
@@ -208,9 +211,10 @@ UnicodeString getUnicodeDateBuffer(SYSTEMTIME timeVal)
 {
 	// setup date buffer for local region date format
 	#define DATE_BUFFER_SIZE 256
+	UnicodeString displayDateBuffer;
+#ifdef _WIN32
 	OSVERSIONINFO	osvi;
 	osvi.dwOSVersionInfoSize=sizeof(OSVERSIONINFO);
-	UnicodeString displayDateBuffer;
 	if (GetVersionEx(&osvi))
 	{	//check if we're running Win9x variant since they may need different characters
 		if (osvi.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS)
@@ -232,14 +236,25 @@ UnicodeString getUnicodeDateBuffer(SYSTEMTIME timeVal)
 								 nullptr,
 								 dateBuffer, ARRAY_SIZE(dateBuffer) );
 	displayDateBuffer.set(dateBuffer);
-	return displayDateBuffer;
 	//displayDateBuffer.format( L"%ls", dateBuffer );
+#else
+	// POSIX: use strftime with locale
+	struct tm t = {};
+	t.tm_year  = timeVal.wYear - 1900;
+	t.tm_mon   = timeVal.wMonth - 1;
+	t.tm_mday  = timeVal.wDay;
+	char dateBuffer[ DATE_BUFFER_SIZE ];
+	strftime(dateBuffer, sizeof(dateBuffer), "%x", &t);
+	displayDateBuffer.translate(dateBuffer);
+#endif
+	return displayDateBuffer;
 }
 
 UnicodeString getUnicodeTimeBuffer(SYSTEMTIME timeVal)
 {
 	// setup time buffer for local region time format
 	UnicodeString displayTimeBuffer;
+#ifdef _WIN32
 	OSVERSIONINFO	osvi;
 	osvi.dwOSVersionInfoSize=sizeof(OSVERSIONINFO);
 	if (GetVersionEx(&osvi))
@@ -266,6 +281,16 @@ UnicodeString getUnicodeTimeBuffer(SYSTEMTIME timeVal)
 								 timeBuffer,
 								 ARRAY_SIZE(timeBuffer) );
 	displayTimeBuffer.set(timeBuffer);
+#else
+	// POSIX: use strftime with locale
+	struct tm t = {};
+	t.tm_hour  = timeVal.wHour;
+	t.tm_min   = timeVal.wMinute;
+	t.tm_sec   = timeVal.wSecond;
+	char timeBuffer[ DATE_BUFFER_SIZE ];
+	strftime(timeBuffer, sizeof(timeBuffer), "%H:%M", &t);
+	displayTimeBuffer.translate(timeBuffer);
+#endif
 	return displayTimeBuffer;
 }
 
@@ -1256,6 +1281,7 @@ void GameState::iterateSaveFiles( IterateSaveFileCallback callback, void *userDa
 	if( callback == nullptr )
 		return;
 
+#ifdef _WIN32
 	// save the current directory
 	char currentDirectory[ _MAX_PATH ];
 	GetCurrentDirectory( _MAX_PATH, currentDirectory );
@@ -1316,6 +1342,27 @@ void GameState::iterateSaveFiles( IterateSaveFileCallback callback, void *userDa
 
 	// restore the current directory
 	SetCurrentDirectory( currentDirectory );
+
+#else // POSIX: iterate the save directory directly using dirent
+	const AsciiString& saveDir = getSaveDirectory();
+	DIR* dir = opendir( saveDir.str() );
+	if( dir )
+	{
+		struct dirent* entry;
+		while( (entry = readdir(dir)) != nullptr )
+		{
+			// see if there is a ".sav" at end of this filename
+			Char *c = strrchr( entry->d_name, '.' );
+			if( c && strcasecmp( c, ".sav" ) == 0 )
+			{
+				AsciiString filename;
+				filename.set( entry->d_name );
+				callback( filename, userData );
+			}
+		}
+		closedir( dir );
+	}
+#endif
 
 }
 

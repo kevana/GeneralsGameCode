@@ -63,7 +63,9 @@ class MMSLockClass
 		~MMSLockClass (void) { ::AIL_unlock (); }
 
 
+#ifdef _WIN32
 	static CRITICAL_SECTION _MSSLockCriticalSection;
+#endif
 };
 
 

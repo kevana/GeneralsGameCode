@@ -168,8 +168,10 @@ void initSubsystem(
 }
 
 //-------------------------------------------------------------------------------------------------
+#ifdef _WIN32
 extern HINSTANCE ApplicationHInstance;  ///< our application instance
 extern CComModule _Module;
+#endif
 
 //-------------------------------------------------------------------------------------------------
 static void updateTGAtoDDS();
@@ -231,6 +233,7 @@ static void updateWindowTitle()
 
 	if (!title.isEmpty())
 	{
+#ifdef _WIN32
 		AsciiString titleA;
 		titleA.translate(title);	//get ASCII version for Win 9x
 
@@ -240,6 +243,7 @@ static void updateWindowTitle()
 			::SetWindowText(ApplicationHWnd, titleA.str());
 			::SetWindowTextW(ApplicationHWnd, title.str());
 		}
+#endif
 	}
 }
 
@@ -251,7 +255,9 @@ GameEngine::GameEngine( void )
 	m_quitting = FALSE;
 	m_isActive = FALSE;
 
+#ifdef _WIN32
 	_Module.Init(nullptr, ApplicationHInstance, nullptr);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -293,7 +299,9 @@ GameEngine::~GameEngine()
 
 	Drawable::killStaticImages();
 
+#ifdef _WIN32
 	_Module.Term();
+#endif
 
 #ifdef PERF_TIMERS
 	PerfGather::termPerfDump();
@@ -917,7 +925,9 @@ void GameEngine::update( void )
 
 // Horrible reference, but we really, really need to know if we are windowed.
 extern bool DX8Wrapper_IsWindowed;
+#ifdef _WIN32
 extern HWND ApplicationHWnd;
+#endif
 
 /** -----------------------------------------------------------------------------------------------
  * The "main loop" of the game engine. It will not return until the game exits.
@@ -1102,4 +1112,8 @@ void updateTGAtoDDS()
 // If we're using the Wide character version of MessageBox, then there's no additional
 // processing necessary. Please note that this is a sleazy way to get this information,
 // but pending a better one, this'll have to do.
+#ifdef _WIN32
 extern const Bool TheSystemIsUnicode = (((void*) (::MessageBox)) == ((void*) (::MessageBoxW)));
+#else
+extern const Bool TheSystemIsUnicode = true; // Non-Windows always uses Unicode
+#endif

@@ -34,3 +34,11 @@ typedef WCHAR* LPWSTR;
 #define MultiByteToWideChar(cp, flags, mbstr, cb, wcstr, cch) mbstowcs(wcstr, mbstr, cch)
 #define WideCharToMultiByte(cp, flags, wcstr, cch, mbstr, cb, defchar, used) wcstombs(mbstr, wcstr, cb)
 
+// _wtoi — wide string to int
+#include <stdlib.h>
+#ifndef _wtoi
+inline int _wtoi(const wchar_t* str) {
+    return (int)wcstol(str, nullptr, 10);
+}
+#endif
+

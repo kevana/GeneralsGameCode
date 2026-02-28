@@ -47,6 +47,8 @@
 #include "GameClient/Display.h"
 
 
+#ifdef _WIN32
+
 /**
 	* OLEInitializer class - Init and shutdown OLE & COM as a global
 	* object.  Scary, nasty stuff, COM.  /me shivers.
@@ -92,6 +94,12 @@ WebBrowser::WebBrowser() :
 	DEBUG_LOG(("Instantiating embedded WebBrowser"));
 	m_urlList = nullptr;
 }
+
+#else // _WIN32
+
+WebBrowser *TheWebBrowser = nullptr;
+
+#endif // _WIN32
 
 
 /******************************************************************************
@@ -163,6 +171,7 @@ WebBrowserURL::~WebBrowserURL()
 *
 ******************************************************************************/
 
+#ifdef _WIN32
 void WebBrowser::init()
 {
 	m_urlList = nullptr;
@@ -193,6 +202,7 @@ void WebBrowser::reset()
 void WebBrowser::update( void )
 {
 }
+#endif // _WIN32
 
 WebBrowserURL * WebBrowser::findURL(AsciiString tag)
 {
@@ -217,6 +227,8 @@ WebBrowserURL * WebBrowser::makeNewURL(AsciiString tag)
 
 	return newURL;
 }
+
+#ifdef _WIN32
 
 /******************************************************************************
 *
@@ -308,3 +320,5 @@ STDMETHODIMP WebBrowser::TestMethod(Int num1)
 	DEBUG_LOG(("WebBrowser::TestMethod - num1 = %d", num1));
 	return S_OK;
 }
+
+#endif // _WIN32

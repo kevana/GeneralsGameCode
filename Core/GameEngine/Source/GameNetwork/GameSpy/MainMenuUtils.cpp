@@ -309,7 +309,7 @@ static void queuePatch(Bool mandatory, AsciiString downloadURL)
 static GHTTPBool motdCallback( GHTTPRequest request, GHTTPResult result,
 															char * buffer, GHTTPByteCount bufferLen, void * param )
 {
-	Int run = (Int)param;
+	Int run = (Int)(intptr_t)param;
 	if (run != timeThroughOnline)
 	{
 		DEBUG_CRASH(("Old callback being called!"));
@@ -344,7 +344,7 @@ static GHTTPBool motdCallback( GHTTPRequest request, GHTTPResult result,
 static GHTTPBool configCallback( GHTTPRequest request, GHTTPResult result,
 																char * buffer, GHTTPByteCount bufferLen, void * param )
 {
-	Int run = (Int)param;
+	Int run = (Int)(intptr_t)param;
 	if (run != timeThroughOnline)
 	{
 		DEBUG_CRASH(("Old callback being called!"));
@@ -406,7 +406,7 @@ static GHTTPBool configCallback( GHTTPRequest request, GHTTPResult result,
 static GHTTPBool configHeadCallback( GHTTPRequest request, GHTTPResult result,
 																		char * buffer, GHTTPByteCount bufferLen, void * param )
 {
-	Int run = (Int)param;
+	Int run = (Int)(intptr_t)param;
 	if (run != timeThroughOnline)
 	{
 		DEBUG_CRASH(("Old callback being called!"));
@@ -490,7 +490,7 @@ static GHTTPBool configHeadCallback( GHTTPRequest request, GHTTPResult result,
 
 static GHTTPBool gamePatchCheckCallback( GHTTPRequest request, GHTTPResult result, char * buffer, GHTTPByteCount bufferLen, void * param )
 {
-	Int run = (Int)param;
+	Int run = (Int)(intptr_t)param;
 	if (run != timeThroughOnline)
 	{
 		DEBUG_CRASH(("Old callback being called!"));
@@ -711,6 +711,8 @@ void CheckNumPlayersOnline( void )
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
+
 DWORD WINAPI asyncGethostbynameThreadFunc( void * szName )
 {
 	HOSTENT *he = gethostbyname( (const char *)szName );
@@ -762,6 +764,19 @@ int asyncGethostbyname(char * szName)
 	return( LOOKUP_INPROGRESS );
 }
 
+#else // _WIN32
+
+int asyncGethostbyname(char * szName)
+{
+	HOSTENT *he = gethostbyname( szName );
+	s_asyncDNSThreadSucceeded = (he != nullptr) ? TRUE : FALSE;
+	s_asyncDNSThreadDone = TRUE;
+	s_asyncDNSLookupInProgress = FALSE;
+	return s_asyncDNSThreadSucceeded ? LOOKUP_SUCCEEDED : LOOKUP_FAILED;
+}
+
+#endif // _WIN32
+
 ///////////////////////////////////////////////////////////////////////////////////////
 
 // GameSpy's HTTP SDK has had at least 1 crash bug, so we're going to just bail and
@@ -806,6 +821,7 @@ void HTTPThinkWrapper( void )
 
 void StopAsyncDNSCheck( void )
 {
+#ifdef _WIN32
 	if (s_asyncDNSThreadHandle)
 	{
 #ifdef DEBUG_CRASHING
@@ -815,6 +831,7 @@ void StopAsyncDNSCheck( void )
 		DEBUG_ASSERTCRASH(res, ("Could not terminate the Async DNS Lookup thread!"));	// Thread still not killed!
 	}
 	s_asyncDNSThreadHandle = nullptr;
+#endif // _WIN32
 	s_asyncDNSLookupInProgress = FALSE;
 }
 

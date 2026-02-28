@@ -47,7 +47,9 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#ifdef _WIN32
 #include "mbstring.h"
+#endif
 
 #include "Common/Debug.h"
 #include "Common/Language.h"
@@ -61,6 +63,8 @@
 #include "GameClient/Color.h"
 #include "Common/NameKeyGenerator.h"
 
+
+#ifdef _WIN32
 
 //----------------------------------------------------------------------------
 //         Externals
@@ -1597,4 +1601,13 @@ void IMEManager::updateStatusWindow( void )
 {
 
 }
+
+#else // _WIN32
+
+IMEManagerInterface *CreateIMEManagerInterface( void )
+{
+	return nullptr;
+}
+
+#endif // _WIN32
 

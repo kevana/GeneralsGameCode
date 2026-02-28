@@ -31,6 +31,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
+
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "always.h"
 #include "GameClient/View.h"
@@ -2439,3 +2441,5 @@ int W3DShadowTextureManager::createTexture(RenderObjClass *robj, const char *nam
 Error:
 	return 1;
 }
+
+#endif // _WIN32

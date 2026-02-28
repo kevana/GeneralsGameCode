@@ -90,7 +90,13 @@ inline int ioctlsocket(int fd, long cmd, unsigned long* argp)
     return SOCKET_ERROR;
 }
 
+// HOSTENT — Windows typedef alias for struct hostent
+#ifndef HOSTENT
+typedef struct hostent HOSTENT;
+#endif
+
 // WSA error code compatibility - map to POSIX errno values
+#define WSAEINVAL         EINVAL
 #define WSAEWOULDBLOCK    EWOULDBLOCK
 #define WSAEINPROGRESS    EINPROGRESS
 #define WSAEALREADY       EALREADY

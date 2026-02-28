@@ -193,7 +193,19 @@ typedef void* HANDLE;
 #define INVALID_HANDLE_VALUE ((HANDLE)(long long)-1)
 #endif
 
-// LARGE_INTEGER / QueryPerformanceCounter / QueryPerformanceFrequency / Sleep
+// HWND / HINSTANCE — Windows window and module handles
+#ifndef HWND
+typedef void* HWND;
+#endif
+#ifndef HINSTANCE
+typedef void* HINSTANCE;
+#endif
+
+// SetWindowText / SetWindowTextW — Windows API stubs
+inline BOOL SetWindowText(HWND /*hwnd*/, const char* /*text*/) { return 0; }
+inline BOOL SetWindowTextW(HWND /*hwnd*/, const wchar_t* /*text*/) { return 0; }
+
+// LARGE_INTEGER / QueryPerformanceCounter / QueryPerformanceFrequency
 #ifndef LARGE_INTEGER
 #include <mach/mach_time.h>
 typedef union _LARGE_INTEGER {
@@ -214,10 +226,7 @@ inline BOOL QueryPerformanceCounter(LARGE_INTEGER* count)
     return TRUE;
 }
 #endif
-#ifndef Sleep
-#include <unistd.h>
-inline void Sleep(DWORD dwMilliseconds) { usleep(dwMilliseconds * 1000); }
-#endif
+// Sleep is provided by thread_compat.h (included below)
 
 // _MAX_DRIVE, _MAX_DIR, _MAX_FNAME, _MAX_EXT, _MAX_PATH
 #ifndef _MAX_DRIVE
@@ -270,6 +279,32 @@ typedef int BOOL;
 // _access — Windows file-access check stub
 #include <unistd.h>
 #define _access access
+
+// WINAPI — Windows calling convention, empty on non-Windows
+#ifndef WINAPI
+#define WINAPI
+#endif
+
+// _open / _close / _O_* / _S_I* — Windows CRT file I/O names mapped to POSIX
+#include <fcntl.h>
+#ifndef _O_CREAT
+#define _O_CREAT  O_CREAT
+#endif
+#ifndef _O_RDWR
+#define _O_RDWR   O_RDWR
+#endif
+#ifndef _S_IREAD
+#define _S_IREAD  S_IRUSR
+#endif
+#ifndef _S_IWRITE
+#define _S_IWRITE S_IWUSR
+#endif
+#ifndef _open
+#define _open  open
+#endif
+#ifndef _close
+#define _close close
+#endif
 
 // CreateDirectory(path, secAttr) — Windows API; secAttr ignored on POSIX
 #include <sys/stat.h>
@@ -347,13 +382,32 @@ inline DWORD FormatMessage(DWORD /*flags*/, const void* /*src*/, DWORD /*id*/,
     return 0;
 }
 
-// SHGetSpecialFolderLocation / SHGetPathFromIDList / CSIDL — Windows Shell API stubs
+// SHGetSpecialFolderLocation / SHGetPathFromIDList / SHGetSpecialFolderPath / CSIDL — Windows Shell API stubs
 typedef void* LPITEMIDLIST;
 #ifndef CSIDL_DESKTOPDIRECTORY
 #define CSIDL_DESKTOPDIRECTORY 0x0010
 #endif
+#ifndef CSIDL_PERSONAL
+#define CSIDL_PERSONAL 0x0005
+#endif
 inline long SHGetSpecialFolderLocation(void* /*hwnd*/, int /*csidl*/, LPITEMIDLIST* pidl) { if (pidl) *pidl = nullptr; return -1; }
 inline BOOL SHGetPathFromIDList(LPITEMIDLIST /*pidl*/, char* pszPath) { if (pszPath) pszPath[0] = '\0'; return FALSE; }
+// SHGetSpecialFolderPath — stub: maps CSIDL_PERSONAL to ~/Documents on POSIX
+#include <stdlib.h>
+#include <string.h>
+inline BOOL SHGetSpecialFolderPath(void* /*hwnd*/, char* pszPath, int csidl, BOOL /*fCreate*/)
+{
+    if (!pszPath) return FALSE;
+    if (csidl == CSIDL_PERSONAL) {
+        const char* home = getenv("HOME");
+        if (home) {
+            snprintf(pszPath, _MAX_PATH, "%s/Documents", home);
+            return TRUE;
+        }
+    }
+    pszPath[0] = '\0';
+    return FALSE;
+}
 
 // LOCALE_SYSTEM_DEFAULT / GetDateFormat — Windows locale API stubs
 #ifndef LOCALE_SYSTEM_DEFAULT
@@ -402,6 +456,170 @@ inline BOOL GetVersionEx(OSVERSIONINFO* lpVersionInfo)
     lpVersionInfo->dwPlatformId = 2;     // VER_PLATFORM_WIN32_NT
     return TRUE;
 }
+#endif
+
+// ULONG — unsigned long (Windows type alias)
+#ifndef ULONG
+typedef unsigned long ULONG;
+#endif
+
+// SetCurrentDirectory — maps to chdir on POSIX
+#ifndef SetCurrentDirectory
+inline BOOL SetCurrentDirectory(const char* path) { return chdir(path) == 0 ? TRUE : FALSE; }
+#endif
+
+// WIN32_FIND_DATA / FindFirstFile / FindNextFile / FindClose — POSIX directory iteration
+#include <dirent.h>
+#ifndef WIN32_FIND_DATA_DEFINED
+#define WIN32_FIND_DATA_DEFINED
+typedef struct _WIN32_FIND_DATAA {
+    DWORD dwFileAttributes;
+    char  cFileName[260];
+} WIN32_FIND_DATA;
+struct _FindHandlePosix {
+    DIR* dir;
+};
+inline HANDLE FindFirstFile(const char* /*pattern*/, WIN32_FIND_DATA* data)
+{
+    DIR* d = opendir(".");
+    if (!d) return INVALID_HANDLE_VALUE;
+    struct dirent* entry;
+    while ((entry = readdir(d)) != nullptr) {
+        if (entry->d_name[0] == '.') continue;
+        struct stat st;
+        if (stat(entry->d_name, &st) != 0) continue;
+        data->dwFileAttributes = S_ISDIR(st.st_mode) ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL;
+        strncpy(data->cFileName, entry->d_name, 259);
+        data->cFileName[259] = '\0';
+        struct _FindHandlePosix* h = new struct _FindHandlePosix;
+        h->dir = d;
+        return (HANDLE)h;
+    }
+    closedir(d);
+    return INVALID_HANDLE_VALUE;
+}
+inline BOOL FindNextFile(HANDLE hFind, WIN32_FIND_DATA* data)
+{
+    if (hFind == INVALID_HANDLE_VALUE) return FALSE;
+    struct _FindHandlePosix* h = (struct _FindHandlePosix*)hFind;
+    struct dirent* entry;
+    while ((entry = readdir(h->dir)) != nullptr) {
+        if (entry->d_name[0] == '.') continue;
+        struct stat st;
+        if (stat(entry->d_name, &st) != 0) continue;
+        data->dwFileAttributes = S_ISDIR(st.st_mode) ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL;
+        strncpy(data->cFileName, entry->d_name, 259);
+        data->cFileName[259] = '\0';
+        return TRUE;
+    }
+    return FALSE;
+}
+inline BOOL FindClose(HANDLE hFind)
+{
+    if (hFind == INVALID_HANDLE_VALUE) return FALSE;
+    struct _FindHandlePosix* h = (struct _FindHandlePosix*)hFind;
+    closedir(h->dir);
+    delete h;
+    return TRUE;
+}
+#endif // WIN32_FIND_DATA_DEFINED
+
+// LOCALE_USER_DEFAULT / DATE_SHORTDATE / TIME_* locale constants
+#ifndef LOCALE_USER_DEFAULT
+#define LOCALE_USER_DEFAULT 0x0400
+#endif
+#ifndef DATE_SHORTDATE
+#define DATE_SHORTDATE 0x00000001
+#endif
+#ifndef TIME_NOSECONDS
+#define TIME_NOSECONDS 0x00000002
+#endif
+#ifndef TIME_NOTIMEMARKER
+#define TIME_NOTIMEMARKER 0x00000004
+#endif
+#ifndef TIME_FORCE24HOURFORMAT
+#define TIME_FORCE24HOURFORMAT 0x00000008
+#endif
+
+// GetDateFormatW — wide-char date formatter stub
+inline int GetDateFormatW(DWORD /*locale*/, DWORD /*flags*/, const void* /*date*/,
+    const wchar_t* /*format*/, wchar_t* buf, int bufSize)
+{
+    if (!buf || bufSize <= 0) return 0;
+    time_t t = time(nullptr);
+    struct tm* lt = localtime(&t);
+    if (!lt) { buf[0] = L'\0'; return 0; }
+    return (int)wcsftime(buf, bufSize, L"%x", lt);
+}
+
+// GetTimeFormat / GetTimeFormatW — time formatter stubs
+inline int GetTimeFormat(DWORD /*locale*/, DWORD /*flags*/, const void* /*time_val*/,
+    const char* /*format*/, char* buf, int bufSize)
+{
+    if (!buf || bufSize <= 0) return 0;
+    time_t t = time(nullptr);
+    struct tm* lt = localtime(&t);
+    if (!lt) { buf[0] = '\0'; return 0; }
+    return (int)strftime(buf, bufSize, "%H:%M", lt);
+}
+inline int GetTimeFormatW(DWORD /*locale*/, DWORD /*flags*/, const void* /*time_val*/,
+    const wchar_t* /*format*/, wchar_t* buf, int bufSize)
+{
+    if (!buf || bufSize <= 0) return 0;
+    time_t t = time(nullptr);
+    struct tm* lt = localtime(&t);
+    if (!lt) { buf[0] = L'\0'; return 0; }
+    return (int)wcsftime(buf, bufSize, L"%H:%M", lt);
+}
+
+// EXCEPTION_POINTERS / CONTEXT — minimal stubs for StackDump interface compatibility
+#ifndef EXCEPTION_POINTERS_DEFINED
+#define EXCEPTION_POINTERS_DEFINED
+typedef struct _EXCEPTION_RECORD {
+    unsigned int    ExceptionCode;
+    unsigned int    ExceptionFlags;
+    struct _EXCEPTION_RECORD* ExceptionRecord;
+    void*           ExceptionAddress;
+    unsigned int    NumberParameters;
+    uintptr_t       ExceptionInformation[15];
+} EXCEPTION_RECORD;
+typedef struct _CONTEXT { int reserved; } CONTEXT;
+typedef struct _EXCEPTION_POINTERS {
+    EXCEPTION_RECORD* ExceptionRecord;
+    CONTEXT*          ContextRecord;
+} EXCEPTION_POINTERS;
+#define EXCEPTION_ACCESS_VIOLATION          0xC0000005
+#define EXCEPTION_ARRAY_BOUNDS_EXCEEDED     0xC000008C
+#define EXCEPTION_BREAKPOINT                0x80000003
+#define EXCEPTION_DATATYPE_MISALIGNMENT     0x80000002
+#define EXCEPTION_FLT_DENORMAL_OPERAND      0xC000008D
+#define EXCEPTION_FLT_DIVIDE_BY_ZERO        0xC000008E
+#define EXCEPTION_FLT_INEXACT_RESULT        0xC000008F
+#define EXCEPTION_FLT_INVALID_OPERATION     0xC0000090
+#define EXCEPTION_FLT_OVERFLOW              0xC0000091
+#define EXCEPTION_FLT_STACK_CHECK           0xC0000092
+#define EXCEPTION_FLT_UNDERFLOW             0xC0000093
+#define EXCEPTION_ILLEGAL_INSTRUCTION       0xC000001D
+#define EXCEPTION_IN_PAGE_ERROR             0xC0000006
+#define EXCEPTION_INT_DIVIDE_BY_ZERO        0xC0000094
+#define EXCEPTION_INT_OVERFLOW              0xC0000095
+#define EXCEPTION_INVALID_DISPOSITION       0xC0000026
+#define EXCEPTION_NONCONTINUABLE_EXCEPTION  0xC0000025
+#define EXCEPTION_PRIV_INSTRUCTION          0xC0000096
+#define EXCEPTION_SINGLE_STEP               0x80000004
+#define EXCEPTION_STACK_OVERFLOW            0xC00000FD
+#endif // EXCEPTION_POINTERS_DEFINED
+
+// DirectX 8 type stubs for non-Windows platforms
+#ifndef LPDIRECT3DDEVICE8
+struct IDirect3DDevice8;
+typedef IDirect3DDevice8* LPDIRECT3DDEVICE8;
+struct IDirect3DVertexBuffer8;
+typedef IDirect3DVertexBuffer8* LPDIRECT3DVERTEXBUFFER8;
+struct IDirect3DIndexBuffer8;
+typedef IDirect3DIndexBuffer8* LPDIRECT3DINDEXBUFFER8;
+struct IDirect3DTexture8;
+typedef IDirect3DTexture8* LPDIRECT3DTEXTURE8;
 #endif
 
 #endif

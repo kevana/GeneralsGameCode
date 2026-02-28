@@ -34,6 +34,8 @@
 ///@todo: Must cap shadow volumes if we ever allow camera inside the volumes.
 ///@todo: Find better way to determine when shadow volumes need updating - lights move, objects move.
 
+#ifdef _WIN32
+
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 #include <assert.h>
 
@@ -4043,3 +4045,5 @@ W3DShadowGeometry * W3DShadowGeometryManagerIterator::Get_Current_Geom( void )
 {
 	return (W3DShadowGeometry *)Get_Current();
 }
+
+#endif // _WIN32

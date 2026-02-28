@@ -31,6 +31,8 @@
 #include "Common/StackDump.h"
 #include "Common/Debug.h"
 
+#ifdef _WIN32
+
 #include "DbgHelpLoader.h"
 
 //*****************************************************************************
@@ -633,6 +635,79 @@ void DumpExceptionInfo( unsigned int u, EXCEPTION_POINTERS* e_info )
 	DEBUG_LOG_RAW(("\n"));
 }
 
+#else // !_WIN32
+
+//*****************************************************************************
+// macOS/POSIX fallback stack-trace implementation using backtrace()
+//*****************************************************************************
+#include <execinfo.h>
+#include <cstdlib>
+#include <cstring>
+
+AsciiString g_LastErrorDump;
+
+void StackDumpDefaultHandler(const char* line)
+{
+	DEBUG_LOG((line));
+}
+
+void StackDump(void (*callback)(const char*))
+{
+	if (!callback) callback = StackDumpDefaultHandler;
+	void* buffer[64];
+	int count = backtrace(buffer, 64);
+	char** symbols = backtrace_symbols(buffer, count);
+	callback("Call Stack\n**********\n");
+	for (int i = 0; i < count; i++) {
+		if (symbols) { callback(symbols[i]); callback("\n"); }
+	}
+	if (symbols) free(symbols);
+}
+
+void StackDumpFromContext(DWORD /*eip*/, DWORD /*esp*/, DWORD /*ebp*/, void (*callback)(const char*))
+{
+	StackDump(callback);
+}
+
+void GetFunctionDetails(void* /*pointer*/, char* name, char* filename,
+	unsigned int* linenumber, unsigned int* address)
+{
+	if (name)       strcpy(name, "<Unknown>");
+	if (filename)   strcpy(filename, "<Unknown>");
+	if (linenumber) *linenumber = 0;
+	if (address)    *address = 0;
+}
+
+void FillStackAddresses(void** addresses, unsigned int count, unsigned int /*skip*/)
+{
+	if (!addresses || !count) return;
+	int got = backtrace(addresses, (int)count);
+	for (unsigned int i = (unsigned int)got; i < count; i++) addresses[i] = nullptr;
+}
+
+void StackDumpFromAddresses(void** addresses, unsigned int count, void (*callback)(const char*))
+{
+	if (!callback) callback = StackDumpDefaultHandler;
+	char** syms = backtrace_symbols(addresses, (int)count);
+	for (unsigned int i = 0; i < count && addresses[i]; i++) {
+		if (syms) { callback(syms[i]); callback("\n"); }
+	}
+	if (syms) free(syms);
+}
+
+void WriteStackLine(void* address, void (*callback)(const char*))
+{
+	void* arr[1] = { address };
+	char** syms = backtrace_symbols(arr, 1);
+	if (syms) { callback(syms[0]); callback("\n"); free(syms); }
+}
+
+void DumpExceptionInfo(unsigned int /*u*/, EXCEPTION_POINTERS* /*e_info*/)
+{
+	StackDump(nullptr);
+}
+
+#endif // _WIN32
 
 #pragma pack(pop)
 

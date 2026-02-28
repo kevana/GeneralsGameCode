@@ -339,9 +339,9 @@ void Keyboard::initKeyNames( void )
 
 	_set_keyname_(L' ',		L' ',		L'\0',	KEY_SPACE  );
 
+#ifdef _WIN32
 	HKL kLayout = GetKeyboardLayout(0);
-
-	Int low = (UnsignedInt)kLayout & 0xFFFF;
+	Int low = (UnsignedInt)(uintptr_t)kLayout & 0xFFFF;
 	LanguageID currentLanguage = OurLanguage;
 	if(low == 0x040c
 		 || low == 0x080c
@@ -349,6 +349,9 @@ void Keyboard::initKeyNames( void )
 		 || low == 0x100c
 		 || low == 0x140c)
 		currentLanguage = LANGUAGE_ID_FRENCH;
+#else
+	LanguageID currentLanguage = OurLanguage;
+#endif
 
 	switch( currentLanguage )
 	{

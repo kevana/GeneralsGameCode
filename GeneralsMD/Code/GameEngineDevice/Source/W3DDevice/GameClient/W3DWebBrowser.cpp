@@ -26,6 +26,11 @@
 // July 2002 Bryan Cleveland
 
 #include "W3DDevice/GameClient/W3DWebBrowser.h"
+
+W3DWebBrowser::W3DWebBrowser() : WebBrowser() {
+}
+
+#ifdef _WIN32
 #include "WW3D2/texture.h"
 #include "WW3D2/textureloader.h"
 #include "WW3D2/surfaceclass.h"
@@ -35,9 +40,6 @@
 #include <d3dx8.h>
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/dx8webbrowser.h"
-
-W3DWebBrowser::W3DWebBrowser() : WebBrowser() {
-}
 
 Bool W3DWebBrowser::createBrowserWindow(const char *tag, GameWindow *win)
 {
@@ -76,3 +78,16 @@ void W3DWebBrowser::closeBrowserWindow(GameWindow *win)
 {
 	DX8WebBrowser::DestroyBrowser(win->winGetInstanceData()->m_decoratedNameString.str());
 }
+
+#else // !_WIN32
+
+Bool W3DWebBrowser::createBrowserWindow(const char * /*tag*/, GameWindow * /*win*/)
+{
+	return FALSE;
+}
+
+void W3DWebBrowser::closeBrowserWindow(GameWindow * /*win*/)
+{
+}
+
+#endif // _WIN32

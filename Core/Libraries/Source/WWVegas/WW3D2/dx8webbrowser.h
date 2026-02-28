@@ -35,7 +35,9 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#ifdef _WIN32
 #include "d3d8.h"
+#endif
 
 // ***********************************
 // Set this to 0 to remove all embedded browser code.

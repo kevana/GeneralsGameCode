@@ -34,7 +34,9 @@
 #include "Utility/comsupp_compat.h" 
 #endif
 
+#ifdef _WIN32
 #include <atlbase.h>
+#endif
 extern CComModule _Module;
 #include <atlcom.h>
 #include <comutil.h>    // For _bstr_t.

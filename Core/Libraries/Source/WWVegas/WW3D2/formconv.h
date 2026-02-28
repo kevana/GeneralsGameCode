@@ -40,7 +40,9 @@
 #pragma once
 
 #include "ww3dformat.h"
+#ifdef _WIN32
 #include <d3d8.h>
+#endif
 
 /*
 ** This file is used for conversions between D3DFORMAT and WW3DFormat.

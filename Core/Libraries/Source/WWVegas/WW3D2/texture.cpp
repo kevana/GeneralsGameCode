@@ -41,7 +41,9 @@
 
 #include "texture.h"
 
+#ifdef _WIN32
 #include <d3d8.h>
+#endif
 #include <d3dx8core.h>
 #include "dx8wrapper.h"
 #include "TARGA.h"

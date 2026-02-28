@@ -75,7 +75,9 @@
 #include "WWFILE.h"
 #include "ffactory.h"
 #else
+#ifdef _WIN32
 #include <io.h>
+#endif
 #include <fcntl.h>
 #include <sys/stat.h>
 #endif
